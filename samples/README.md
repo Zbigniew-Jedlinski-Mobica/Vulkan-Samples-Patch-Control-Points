@@ -275,6 +275,11 @@ Demonstrate how to do conditional rendering, dynamically discarding rendering co
 **Extension**: [```VK_EXT_vertex_input_dynamic_state```](https://registry.khronos.org/vulkan/specs/1.3-extensions/man/html/VK_EXT_vertex_input_dynamic_state.html) <br/>
 Demonstrate how to use vertex input bindings and attribute descriptions dynamically, which can reduce the number of pipeline objects that are need to be created.
 
+### [Patch control points](./extensions/patch_control_points)
+**Extension**: [```VK_EXT_extended_dynamic_state2```](https://registry.khronos.org/vulkan/specs/1.3-extensions/man/html/VK_EXT_extended_dynamic_state2.html)
+<br/>
+Demonstrate how to use patch control points dynamically, which can reduce the number of pipeline objects that are needed to be created.
+
 ## Tooling Samples
 
 The goal of these samples is to demonstrate usage of tooling functions and libraries that are not directly part of the api.
