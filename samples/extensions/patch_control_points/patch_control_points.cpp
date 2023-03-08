@@ -32,6 +32,7 @@ PatchControlPoints::PatchControlPoints()
 	add_instance_extension(VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME);
 	add_device_extension(VK_EXT_EXTENDED_DYNAMIC_STATE_2_EXTENSION_NAME);
 	add_device_extension(VK_EXT_EXTENDED_DYNAMIC_STATE_EXTENSION_NAME);
+	
 }
 
 PatchControlPoints::~PatchControlPoints()
@@ -40,20 +41,28 @@ PatchControlPoints::~PatchControlPoints()
 	{
 		uniform_buffers.common.reset();
 		uniform_buffers.baseline.reset();
-		uniform_buffers.tesselation.reset();
+		uniform_buffers.dynamically_tessellation.reset();
+		uniform_buffers.statically_tessellation.reset();
 
-		vkDestroySampler(get_device().get_handle(), textures.envmap.sampler, VK_NULL_HANDLE);
-		textures = {};
+//	ZJ BACKGROUND
+//		vkDestroySampler(get_device().get_handle(), textures.envmap.sampler, VK_NULL_HANDLE);
+//		textures = {};
 
-		vkDestroyPipeline(get_device().get_handle(), pipeline.tesselation, VK_NULL_HANDLE);
+		vkDestroyPipeline(get_device().get_handle(), pipeline.dynamically_tessellation, VK_NULL_HANDLE);
+		vkDestroyPipeline(get_device().get_handle(), pipeline.statically_tessellation, VK_NULL_HANDLE);
 		vkDestroyPipeline(get_device().get_handle(), pipeline.baseline, VK_NULL_HANDLE);
-		vkDestroyPipeline(get_device().get_handle(), pipeline.background, VK_NULL_HANDLE);
-		vkDestroyPipelineLayout(get_device().get_handle(), pipeline_layouts.tesselation, VK_NULL_HANDLE);
+//	ZJ BACKGROUND
+//		vkDestroyPipeline(get_device().get_handle(), pipeline.background, VK_NULL_HANDLE);
+		vkDestroyPipelineLayout(get_device().get_handle(), pipeline_layouts.dynamically_tessellation, VK_NULL_HANDLE);
+		vkDestroyPipelineLayout(get_device().get_handle(), pipeline_layouts.statically_tessellation, VK_NULL_HANDLE);
 		vkDestroyPipelineLayout(get_device().get_handle(), pipeline_layouts.baseline, VK_NULL_HANDLE);
-		vkDestroyPipelineLayout(get_device().get_handle(), pipeline_layouts.background, VK_NULL_HANDLE);
-		vkDestroyDescriptorSetLayout(get_device().get_handle(), descriptor_set_layouts.tesselation, VK_NULL_HANDLE);
+//	ZJ BACKGROUND
+//		vkDestroyPipelineLayout(get_device().get_handle(), pipeline_layouts.background, VK_NULL_HANDLE);
+		vkDestroyDescriptorSetLayout(get_device().get_handle(), descriptor_set_layouts.dynamically_tessellation, VK_NULL_HANDLE);
+		vkDestroyDescriptorSetLayout(get_device().get_handle(), descriptor_set_layouts.statically_tessellation, VK_NULL_HANDLE);
 		vkDestroyDescriptorSetLayout(get_device().get_handle(), descriptor_set_layouts.baseline, VK_NULL_HANDLE);
-		vkDestroyDescriptorSetLayout(get_device().get_handle(), descriptor_set_layouts.background, VK_NULL_HANDLE);
+//	ZJ BACKGROUND
+//		vkDestroyDescriptorSetLayout(get_device().get_handle(), descriptor_set_layouts.background, VK_NULL_HANDLE);
 		vkDestroyDescriptorPool(get_device().get_handle(), descriptor_pool, VK_NULL_HANDLE);
 	}
 }
@@ -70,12 +79,16 @@ bool PatchControlPoints::prepare(vkb::Platform &platform)
 	}
 
 	camera.type = vkb::CameraType::LookAt;
-	camera.set_position({2.0f, -4.0f, -10.0f});
+	//camera.set_position({2.0f, -4.0f, -10.0f});
+	camera.set_position({8.0f, -8.0f, -20.0f});
 	camera.set_rotation({-15.0f, 190.0f, 0.0f});
 	camera.set_perspective(60.0f, static_cast<float>(width) / static_cast<float>(height), 256.0f, 0.1f);
 
 	load_assets();
 	model_data_creation();
+//	ZJ 2
+	triangles_model_data_creation();
+//	quads_model_data_creation();
 	prepare_uniform_buffers();
 	create_descriptor_pool();
 	setup_descriptor_set_layout();
@@ -92,6 +105,9 @@ bool PatchControlPoints::prepare(vkb::Platform &platform)
  */
 void PatchControlPoints::load_assets()
 {
+	models.terrain_one = load_model("scenes/terrain.gltf");
+	models.terrain_two = load_model("scenes/terrain.gltf");
+
 //	ZJ
 //	load_scene("scenes/primitives/primitives.gltf");
 //
@@ -129,9 +145,10 @@ void PatchControlPoints::load_assets()
 //	/* Split scene */
 //	scene_pipeline_divide(scene_elements);
 
-	background_model = load_model("scenes/cube.gltf");
-	/* Load HDR cube map */
-	textures.envmap = load_texture_cubemap("textures/uffizi_rgba16f_cube.ktx", vkb::sg::Image::Color);
+//	ZJ 1
+//	background_model = load_model("scenes/cube.gltf");
+//	/* Load HDR cube map */
+//	textures.envmap = load_texture_cubemap("textures/uffizi_rgba16f_cube.ktx", vkb::sg::Image::Color);
 }
 
 /**
@@ -170,18 +187,22 @@ void PatchControlPoints::render(float delta_time)
  */
 void PatchControlPoints::prepare_uniform_buffers()
 {
-	uniform_buffers.common      = std::make_unique<vkb::core::Buffer>(get_device(),
-                                                                 sizeof(ubo_common),
-                                                                 VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-                                                                 VMA_MEMORY_USAGE_CPU_TO_GPU);
-	uniform_buffers.baseline    = std::make_unique<vkb::core::Buffer>(get_device(),
-                                                                   sizeof(ubo_baseline),
-                                                                   VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-                                                                   VMA_MEMORY_USAGE_CPU_TO_GPU);
-	uniform_buffers.tesselation = std::make_unique<vkb::core::Buffer>(get_device(),
-	                                                                  sizeof(ubo_tess),
-	                                                                  VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-	                                                                  VMA_MEMORY_USAGE_CPU_TO_GPU);
+	uniform_buffers.common                      = std::make_unique<vkb::core::Buffer>(get_device(),
+                                                                        sizeof(ubo_common),
+                                                                        VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+                                                                        VMA_MEMORY_USAGE_CPU_TO_GPU);
+	uniform_buffers.baseline                    = std::make_unique<vkb::core::Buffer>(get_device(),
+                                                                        sizeof(ubo_baseline),
+                                                                        VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+                                                                        VMA_MEMORY_USAGE_CPU_TO_GPU);
+	uniform_buffers.dynamically_tessellation    = std::make_unique<vkb::core::Buffer>(get_device(),
+	                                                                    sizeof(ubo_tess),
+	                                                                    VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+	                                                                    VMA_MEMORY_USAGE_CPU_TO_GPU);
+	uniform_buffers.statically_tessellation     = std::make_unique<vkb::core::Buffer>(get_device(),
+	                                                                    sizeof(ubo_tess),
+	                                                                    VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+	                                                                    VMA_MEMORY_USAGE_CPU_TO_GPU);
 	update_uniform_buffers();
 }
 
@@ -200,14 +221,13 @@ void PatchControlPoints::update_uniform_buffers()
 	uniform_buffers.baseline->convert_and_update(ubo_baseline);
 
 	/* Tessellation uniform buffer */
-	ubo_tess.tessellation_factor = gui_settings.tess_factor;
+	ubo_tess.viewport_dim = glm::vec2(static_cast<float>(width), static_cast<float>(height));
 
-	if (!gui_settings.tessellation)
-	{
-		// Setting this to zero sets all tessellation factors to 1.0 in the shader
-		ubo_tess.tessellation_factor = 0.0f;
-	}
-	uniform_buffers.tesselation->convert_and_update(ubo_tess);
+	/* Dynamically tessellation */
+	uniform_buffers.dynamically_tessellation->convert_and_update(ubo_tess);
+
+	/* Statically tessellation */
+	uniform_buffers.statically_tessellation->convert_and_update(ubo_tess);
 }
 
 /**
@@ -219,7 +239,8 @@ void PatchControlPoints::create_pipelines()
 	/* Setup for first pipeline */
 	VkPipelineInputAssemblyStateCreateInfo input_assembly_state =
 	    vkb::initializers::pipeline_input_assembly_state_create_info(
-	        VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
+//	        VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,  //STARE
+			VK_PRIMITIVE_TOPOLOGY_PATCH_LIST, //DODAĆ
 	        0,
 	        VK_FALSE);
 
@@ -227,7 +248,8 @@ void PatchControlPoints::create_pipelines()
 	    vkb::initializers::pipeline_rasterization_state_create_info(
 	        VK_POLYGON_MODE_FILL,
 	        VK_CULL_MODE_BACK_BIT,
-	        VK_FRONT_FACE_CLOCKWISE,
+//	        VK_FRONT_FACE_CLOCKWISE, //STARE
+			VK_FRONT_FACE_COUNTER_CLOCKWISE, // DODAĆ
 	        0);
 
 	rasterization_state.depthBiasConstantFactor = 1.0f;
@@ -332,53 +354,91 @@ void PatchControlPoints::create_pipelines()
 	                                   VK_NULL_HANDLE,
 	                                   &pipeline.baseline));
 
-	/* Setup for second pipeline */
-	graphics_create.layout = pipeline_layouts.background;
+// ZJ BACKGROUND
+//	/* Setup for second pipeline */
+//	graphics_create.layout = pipeline_layouts.background;
+//
+//	std::vector<VkDynamicState> dynamic_state_enables_background = {
+//	    VK_DYNAMIC_STATE_VIEWPORT,
+//	    VK_DYNAMIC_STATE_SCISSOR,
+//	};
+//	dynamic_state.pDynamicStates    = dynamic_state_enables_background.data();
+//	dynamic_state.dynamicStateCount = static_cast<uint32_t>(dynamic_state_enables_background.size());
+//
+//	/* Binding description */
+//	std::vector<VkVertexInputBindingDescription> vertex_input_bindings_background = {
+//	    vkb::initializers::vertex_input_binding_description(0, sizeof(Vertex), VK_VERTEX_INPUT_RATE_VERTEX),
+//	};
+//
+//	/* Attribute descriptions */
+//	std::vector<VkVertexInputAttributeDescription> vertex_input_attributes_background = {
+//	    vkb::initializers::vertex_input_attribute_description(0,
+//	                                                          0,
+//	                                                          VK_FORMAT_R32G32B32_SFLOAT,
+//	                                                          0),        // Position
+//	    vkb::initializers::vertex_input_attribute_description(0,
+//	                                                          1,
+//	                                                          VK_FORMAT_R32G32B32_SFLOAT,
+//	                                                          offsetof(Vertex, normal)),        // Normal
+//	};
+//
+//	vertex_input_state.vertexBindingDescriptionCount   = static_cast<uint32_t>(vertex_input_bindings_background.size());
+//	vertex_input_state.pVertexBindingDescriptions      = vertex_input_bindings_background.data();
+//	vertex_input_state.vertexAttributeDescriptionCount = static_cast<uint32_t>(vertex_input_attributes_background.size());
+//	vertex_input_state.pVertexAttributeDescriptions    = vertex_input_attributes_background.data();
+//
+//	rasterization_state.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+//
+//	shader_stages[0] = load_shader("patch_control_points/background.vert", VK_SHADER_STAGE_VERTEX_BIT);
+//	shader_stages[1] = load_shader("patch_control_points/background.frag", VK_SHADER_STAGE_FRAGMENT_BIT);
+//
+//	VK_CHECK(vkCreateGraphicsPipelines(get_device().get_handle(),
+//	                                   pipeline_cache,
+//	                                   1,
+//	                                   &graphics_create,
+//	                                   VK_NULL_HANDLE,
+//	                                   &pipeline.background));
 
-	std::vector<VkDynamicState> dynamic_state_enables_background = {
-	    VK_DYNAMIC_STATE_VIEWPORT,
-	    VK_DYNAMIC_STATE_SCISSOR,
-	};
-	dynamic_state.pDynamicStates    = dynamic_state_enables_background.data();
-	dynamic_state.dynamicStateCount = static_cast<uint32_t>(dynamic_state_enables_background.size());
+// ZJ Pierwsza lista teselacji
+//	/* Setup for third pipeline */
+//	graphics_create.pTessellationState = &tessellation_state;
+//	graphics_create.layout             = pipeline_layouts.statically_tessellation;
+//	input_assembly_state.topology      = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+//
+//	dynamic_state_enables.push_back(VK_DYNAMIC_STATE_PRIMITIVE_RESTART_ENABLE_EXT);
+//	dynamic_state.pDynamicStates    = dynamic_state_enables.data();
+//	dynamic_state.dynamicStateCount = static_cast<uint32_t>(dynamic_state_enables.size());
+//
+//	vertex_input_state.vertexBindingDescriptionCount   = static_cast<uint32_t>(vertex_input_bindings.size());
+//	vertex_input_state.pVertexBindingDescriptions      = vertex_input_bindings.data();
+//	vertex_input_state.vertexAttributeDescriptionCount = static_cast<uint32_t>(vertex_input_attributes.size());
+//	vertex_input_state.pVertexAttributeDescriptions    = vertex_input_attributes.data();
+//
+//	/* Wireframe mode */
+//	if (get_device().get_gpu().get_features().fillModeNonSolid)
+//	{
+//		rasterization_state.polygonMode = VK_POLYGON_MODE_LINE; // before VK_POLYGON_MODE_LINE VK_POLYGON_MODE_POINT
+//	}
+//
+//	shader_stages[0]           = load_shader("patch_control_points/tess.vert", VK_SHADER_STAGE_VERTEX_BIT);
+//	shader_stages[1]           = load_shader("patch_control_points/tess.frag", VK_SHADER_STAGE_FRAGMENT_BIT);
+//	shader_stages[2]           = load_shader("patch_control_points/tess.tesc", VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT);
+//	shader_stages[3]           = load_shader("patch_control_points/tess.tese", VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT);
+//	graphics_create.stageCount = static_cast<uint32_t>(shader_stages.size());
+//	graphics_create.pStages    = shader_stages.data();
+//	/* Enable depth test and write */
+//	depth_stencil_state.depthWriteEnable = VK_TRUE;
+//	depth_stencil_state.depthTestEnable  = VK_TRUE;
+//	/* Flip cull mode */
+//	rasterization_state.cullMode = VK_CULL_MODE_FRONT_BIT;
+//	VK_CHECK(vkCreateGraphicsPipelines(get_device().get_handle(), pipeline_cache, 1, &graphics_create, VK_NULL_HANDLE, &pipeline.statically_tessellation));
 
-	/* Binding description */
-	std::vector<VkVertexInputBindingDescription> vertex_input_bindings_background = {
-	    vkb::initializers::vertex_input_binding_description(0, sizeof(Vertex), VK_VERTEX_INPUT_RATE_VERTEX),
-	};
 
-	/* Attribute descriptions */
-	std::vector<VkVertexInputAttributeDescription> vertex_input_attributes_background = {
-	    vkb::initializers::vertex_input_attribute_description(0,
-	                                                          0,
-	                                                          VK_FORMAT_R32G32B32_SFLOAT,
-	                                                          0),        // Position
-	    vkb::initializers::vertex_input_attribute_description(0,
-	                                                          1,
-	                                                          VK_FORMAT_R32G32B32_SFLOAT,
-	                                                          offsetof(Vertex, normal)),        // Normal
-	};
 
-	vertex_input_state.vertexBindingDescriptionCount   = static_cast<uint32_t>(vertex_input_bindings_background.size());
-	vertex_input_state.pVertexBindingDescriptions      = vertex_input_bindings_background.data();
-	vertex_input_state.vertexAttributeDescriptionCount = static_cast<uint32_t>(vertex_input_attributes_background.size());
-	vertex_input_state.pVertexAttributeDescriptions    = vertex_input_attributes_background.data();
-
-	rasterization_state.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
-
-	shader_stages[0] = load_shader("patch_control_points/background.vert", VK_SHADER_STAGE_VERTEX_BIT);
-	shader_stages[1] = load_shader("patch_control_points/background.frag", VK_SHADER_STAGE_FRAGMENT_BIT);
-
-	VK_CHECK(vkCreateGraphicsPipelines(get_device().get_handle(),
-	                                   pipeline_cache,
-	                                   1,
-	                                   &graphics_create,
-	                                   VK_NULL_HANDLE,
-	                                   &pipeline.background));
-
-	/* Setup for third pipeline */
+// ZJ Druga lista teselacji
+	/* Setup for fourth pipeline */
 	graphics_create.pTessellationState = &tessellation_state;
-	graphics_create.layout             = pipeline_layouts.tesselation;
+	graphics_create.layout             = pipeline_layouts.statically_tessellation;
 	input_assembly_state.topology      = VK_PRIMITIVE_TOPOLOGY_PATCH_LIST;
 
 	dynamic_state_enables.push_back(VK_DYNAMIC_STATE_PATCH_CONTROL_POINTS_EXT);
@@ -393,17 +453,13 @@ void PatchControlPoints::create_pipelines()
 	/* Wireframe mode */
 	if (get_device().get_gpu().get_features().fillModeNonSolid)
 	{
-		rasterization_state.polygonMode = VK_POLYGON_MODE_LINE;
+		rasterization_state.polygonMode = VK_POLYGON_MODE_POINT; // before VK_POLYGON_MODE_LINE VK_POLYGON_MODE_POINT
 	}
 
-	shader_stages[0]           = load_shader("patch_control_points/tess.vert",
-	                                         VK_SHADER_STAGE_VERTEX_BIT);
-	shader_stages[1]           = load_shader("patch_control_points/tess.frag",
-	                                         VK_SHADER_STAGE_FRAGMENT_BIT);
-	shader_stages[2]           = load_shader("patch_control_points/tess.tesc",
-	                                         VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT);
-	shader_stages[3]           = load_shader("patch_control_points/tess.tese",
-	                                         VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT);
+	shader_stages[0]           = load_shader("patch_control_points/tess.vert", VK_SHADER_STAGE_VERTEX_BIT);
+	shader_stages[1]           = load_shader("patch_control_points/tess.frag", VK_SHADER_STAGE_FRAGMENT_BIT);
+	shader_stages[2]           = load_shader("patch_control_points/tess.tesc", VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT);
+	shader_stages[3]           = load_shader("patch_control_points/tess.tese", VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT);
 	graphics_create.stageCount = static_cast<uint32_t>(shader_stages.size());
 	graphics_create.pStages    = shader_stages.data();
 	/* Enable depth test and write */
@@ -411,12 +467,7 @@ void PatchControlPoints::create_pipelines()
 	depth_stencil_state.depthTestEnable  = VK_TRUE;
 	/* Flip cull mode */
 	rasterization_state.cullMode = VK_CULL_MODE_FRONT_BIT;
-	VK_CHECK(vkCreateGraphicsPipelines(get_device().get_handle(),
-	                                   pipeline_cache,
-	                                   1,
-	                                   &graphics_create,
-	                                   VK_NULL_HANDLE,
-	                                   &pipeline.tesselation));
+	VK_CHECK(vkCreateGraphicsPipelines(get_device().get_handle(), pipeline_cache, 1, &graphics_create, VK_NULL_HANDLE, &pipeline.statically_tessellation));
 }
 
 /**
@@ -435,6 +486,7 @@ void PatchControlPoints::build_command_buffers()
 	clear_values[1].depthStencil = {0.0f, 0};
 
 	constexpr uint32_t patch_control_points_triangle = 3; /* Geosphere model is based on triangle patches */
+	constexpr uint32_t patch_control_points_quad = 4; /* Geosphere model is based on quad patches */
 
 	int i = -1; /* Required for accessing element in framebuffers vector */
 	for (auto &draw_cmd_buffer : draw_cmd_buffers)
@@ -459,19 +511,21 @@ void PatchControlPoints::build_command_buffers()
 		VkRect2D scissor = vkb::initializers::rect2D(static_cast<int>(width), static_cast<int>(height), 0, 0);
 		vkCmdSetScissor(draw_cmd_buffer, 0, 1, &scissor);
 
-		/* Binding background pipeline and descriptor sets */
-		vkCmdBindDescriptorSets(draw_cmd_buffer,
-		                        VK_PIPELINE_BIND_POINT_GRAPHICS,
-		                        pipeline_layouts.background,
-		                        0,
-		                        1,
-		                        &descriptor_sets.background,
-		                        0,
-		                        nullptr);
-		vkCmdBindPipeline(draw_cmd_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.background);
-
-		/* Drawing background */
-		draw_model(background_model, draw_cmd_buffer);
+//	ZJ - BACKGROUND
+//		/* Binding background pipeline and descriptor sets */
+//		vkCmdBindDescriptorSets(draw_cmd_buffer,
+//		                        VK_PIPELINE_BIND_POINT_GRAPHICS,
+//		                        pipeline_layouts.background,
+//		                        0,
+//		                        1,
+//		                        &descriptor_sets.background,
+//		                        0,
+//		                        nullptr);
+//		vkCmdBindPipeline(draw_cmd_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.background);
+//
+//
+//		/* Drawing background */
+//		draw_model(background_model, draw_cmd_buffer);
 
 		/* Changing bindings to baseline pipeline and descriptor sets */
 		vkCmdBindDescriptorSets(draw_cmd_buffer,
@@ -483,39 +537,70 @@ void PatchControlPoints::build_command_buffers()
 		                        0,
 		                        nullptr);
 		vkCmdBindPipeline(draw_cmd_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.baseline);
+
 //	ZJ
-//		/* Setting topology to triangle list and disabling primitive restart functionality */
+//		/* Changing topology to triangle strip with using primitive restart feature */
+		vkCmdSetPrimitiveTopologyEXT(draw_cmd_buffer, VK_PRIMITIVE_TOPOLOGY_PATCH_LIST);
 //		vkCmdSetPrimitiveTopologyEXT(draw_cmd_buffer, VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
-//		vkCmdSetPrimitiveRestartEnableEXT(draw_cmd_buffer, VK_FALSE);
-//
-//		/* Drawing objects from baseline scene (with rasterizer discard and depth bias functionality) */
-//		draw_from_scene(draw_cmd_buffer, scene_elements_baseline);
-
-		/* Changing topology to triangle strip with using primitive restart feature */
-		vkCmdSetPrimitiveTopologyEXT(draw_cmd_buffer, VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP);
 		vkCmdSetPrimitiveRestartEnableEXT(draw_cmd_buffer, VK_TRUE);
+//		vkCmdSetPrimitiveRestartEnableEXT(draw_cmd_buffer, VK_FALSE);
 
-		/* Draw model with primitive restart functionality */
-		draw_created_model(draw_cmd_buffer);
+		auto &terrain_vertex_buffer = models.terrain_one->vertex_buffers.at("vertex_buffer");
+		auto &terrain_index_buffer  = models.terrain_one->index_buffer;
 
-//	ZJ
+		vkCmdBindDescriptorSets(draw_cmd_buffer,
+		                        VK_PIPELINE_BIND_POINT_GRAPHICS,
+		                        pipeline_layouts.statically_tessellation,
+		                        0,
+		                        1,
+		                        &descriptor_sets.statically_tessellation,
+		                        0,
+		                        nullptr);
+		vkCmdBindPipeline(draw_cmd_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.statically_tessellation);
+		//vkCmdBindVertexBuffers(draw_cmd_buffer, 0, 1, terrain_vertex_buffer->get(), offsets);
+		//vkCmdBindVertexBuffers(draw_cmd_buffer, 1, 1, &instance_buffer.buffer, offsets);
+		//vkCmdBindIndexBuffer(draw_cmd_buffer, terrain.indices->get_handle(), 0, VK_INDEX_TYPE_UINT32);
+		//vkCmdDrawIndexed(draw_cmd_buffer, terrain.index_count, 1, 0, 0, 0);
+		draw_model(models.terrain_one, draw_cmd_buffer);
+
+//	ZJ TRIANGLE
 //		/* Changing bindings to tessellation pipeline */
 //		vkCmdBindDescriptorSets(draw_cmd_buffer,
 //		                        VK_PIPELINE_BIND_POINT_GRAPHICS,
-//		                        pipeline_layouts.tesselation,
+//		                        pipeline_layouts.statically_tessellation,
 //		                        0,
 //		                        1,
-//		                        &descriptor_sets.tesselation,
+//		                        &descriptor_sets.statically_tessellation,
 //		                        0,
 //		                        nullptr);
-//		vkCmdBindPipeline(draw_cmd_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.tesselation);
+//		vkCmdBindPipeline(draw_cmd_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.statically_tessellation);
 //
 //		/* Change topology to patch list and setting patch control points value */
 //		vkCmdSetPrimitiveTopologyEXT(draw_cmd_buffer, VK_PRIMITIVE_TOPOLOGY_PATCH_LIST);
 //		vkCmdSetPatchControlPointsEXT(draw_cmd_buffer, patch_control_points_triangle);
 //
 //		/* Drawing scene with objects using tessellation feature */
-//		draw_from_scene(draw_cmd_buffer, scene_elements_tess);
+//		draw_created_triangles_model(draw_cmd_buffer);
+
+
+//	ZJ QADY
+//		/* Changing bindings to tessellation pipeline */
+//		vkCmdBindDescriptorSets(draw_cmd_buffer,
+//		                        VK_PIPELINE_BIND_POINT_GRAPHICS,
+//		                        pipeline_layouts.statically_tessellation,
+//		                        0,
+//		                        1,
+//		                        &descriptor_sets.statically_tessellation,
+//		                        0,
+//		                        nullptr);
+//		vkCmdBindPipeline(draw_cmd_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.statically_tessellation);
+//
+//		/* Change topology to patch list and setting patch control points value */
+//		vkCmdSetPrimitiveTopologyEXT(draw_cmd_buffer, VK_PRIMITIVE_TOPOLOGY_PATCH_LIST);
+//		vkCmdSetPatchControlPointsEXT(draw_cmd_buffer, patch_control_points_quad);
+//
+//		/* Drawing scene with objects using tessellation feature */
+//		draw_created_quads_model(draw_cmd_buffer);
 
 		/* UI */
 		draw_ui(draw_cmd_buffer);
@@ -607,43 +692,44 @@ void PatchControlPoints::setup_descriptor_set_layout()
 	VK_CHECK(vkCreateDescriptorSetLayout(get_device().get_handle(),
 	                                     &descriptor_layout_create_info,
 	                                     nullptr,
-	                                     &descriptor_set_layouts.tesselation));
+	                                     &descriptor_set_layouts.statically_tessellation));
 
-	pipeline_layout_create_info.pSetLayouts    = &descriptor_set_layouts.tesselation;
+	pipeline_layout_create_info.pSetLayouts    = &descriptor_set_layouts.statically_tessellation;
 	pipeline_layout_create_info.setLayoutCount = 1;
 	push_constant_range.stageFlags             = VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT;
 	VK_CHECK(vkCreatePipelineLayout(get_device().get_handle(),
 	                                &pipeline_layout_create_info,
 	                                nullptr,
-	                                &pipeline_layouts.tesselation));
+	                                &pipeline_layouts.statically_tessellation));
 
-	/* Third descriptor set */
-	set_layout_bindings = {
-	    vkb::initializers::descriptor_set_layout_binding(
-	        VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-	        VK_SHADER_STAGE_VERTEX_BIT,
-	        0),
-	    vkb::initializers::descriptor_set_layout_binding(
-	        VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-	        VK_SHADER_STAGE_FRAGMENT_BIT,
-	        1),
-	};
-
-	descriptor_layout_create_info.pBindings    = set_layout_bindings.data();
-	descriptor_layout_create_info.bindingCount = static_cast<uint32_t>(set_layout_bindings.size());
-	VK_CHECK(vkCreateDescriptorSetLayout(get_device().get_handle(),
-	                                     &descriptor_layout_create_info,
-	                                     nullptr,
-	                                     &descriptor_set_layouts.background));
-
-	pipeline_layout_create_info.pSetLayouts            = &descriptor_set_layouts.background;
-	pipeline_layout_create_info.setLayoutCount         = 1;
-	pipeline_layout_create_info.pushConstantRangeCount = 0;
-	pipeline_layout_create_info.pPushConstantRanges    = VK_NULL_HANDLE;
-	VK_CHECK(vkCreatePipelineLayout(get_device().get_handle(),
-	                                &pipeline_layout_create_info,
-	                                nullptr,
-	                                &pipeline_layouts.background));
+//	ZJ BACKGROUND
+//	/* Third descriptor set */
+//	set_layout_bindings = {
+//	    vkb::initializers::descriptor_set_layout_binding(
+//	        VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+//	        VK_SHADER_STAGE_VERTEX_BIT,
+//	        0),
+//	    vkb::initializers::descriptor_set_layout_binding(
+//	        VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+//	        VK_SHADER_STAGE_FRAGMENT_BIT,
+//	        1),
+//	};
+//
+//	descriptor_layout_create_info.pBindings    = set_layout_bindings.data();
+//	descriptor_layout_create_info.bindingCount = static_cast<uint32_t>(set_layout_bindings.size());
+//	VK_CHECK(vkCreateDescriptorSetLayout(get_device().get_handle(),
+//	                                     &descriptor_layout_create_info,
+//	                                     nullptr,
+//	                                     &descriptor_set_layouts.background));
+//
+//	pipeline_layout_create_info.pSetLayouts            = &descriptor_set_layouts.background;
+//	pipeline_layout_create_info.setLayoutCount         = 1;
+//	pipeline_layout_create_info.pushConstantRangeCount = 0;
+//	pipeline_layout_create_info.pPushConstantRanges    = VK_NULL_HANDLE;
+//	VK_CHECK(vkCreatePipelineLayout(get_device().get_handle(),
+//	                                &pipeline_layout_create_info,
+//	                                nullptr,
+//	                                &pipeline_layouts.background));
 }
 
 /**
@@ -683,21 +769,21 @@ void PatchControlPoints::create_descriptor_sets()
 	alloc_info =
 	    vkb::initializers::descriptor_set_allocate_info(
 	        descriptor_pool,
-	        &descriptor_set_layouts.tesselation,
+	        &descriptor_set_layouts.statically_tessellation,
 	        1);
 
-	VK_CHECK(vkAllocateDescriptorSets(get_device().get_handle(), &alloc_info, &descriptor_sets.tesselation));
+	VK_CHECK(vkAllocateDescriptorSets(get_device().get_handle(), &alloc_info, &descriptor_sets.statically_tessellation));
 
-	VkDescriptorBufferInfo matrix_tess_buffer_descriptor = create_descriptor(*uniform_buffers.tesselation);
+	VkDescriptorBufferInfo matrix_tess_buffer_descriptor = create_descriptor(*uniform_buffers.statically_tessellation);
 
 	write_descriptor_sets = {
 	    vkb::initializers::write_descriptor_set(
-	        descriptor_sets.tesselation,
+	        descriptor_sets.statically_tessellation,
 	        VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
 	        0,
 	        &matrix_common_buffer_descriptor),
 	    vkb::initializers::write_descriptor_set(
-	        descriptor_sets.tesselation,
+	        descriptor_sets.statically_tessellation,
 	        VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
 	        1,
 	        &matrix_tess_buffer_descriptor)};
@@ -705,33 +791,35 @@ void PatchControlPoints::create_descriptor_sets()
 	vkUpdateDescriptorSets(get_device().get_handle(), static_cast<uint32_t>(write_descriptor_sets.size()),
 	                       write_descriptor_sets.data(), 0, VK_NULL_HANDLE);
 
-	/* Third descriptor set */
-	alloc_info =
-	    vkb::initializers::descriptor_set_allocate_info(
-	        descriptor_pool,
-	        &descriptor_set_layouts.background,
-	        1);
-
-	VK_CHECK(vkAllocateDescriptorSets(get_device().get_handle(), &alloc_info, &descriptor_sets.background));
-
-	VkDescriptorImageInfo background_image_descriptor = create_descriptor(textures.envmap);
-
-	write_descriptor_sets = {
-	    vkb::initializers::write_descriptor_set(
-	        descriptor_sets.background,
-	        VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-	        0,
-	        &matrix_common_buffer_descriptor),
-	    vkb::initializers::write_descriptor_set(
-	        descriptor_sets.background,
-	        VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-	        1,
-	        &background_image_descriptor)};
-
-	vkUpdateDescriptorSets(get_device().get_handle(), static_cast<uint32_t>(write_descriptor_sets.size()),
-	                       write_descriptor_sets.data(), 0, VK_NULL_HANDLE);
+//	ZJ BACKGROUND
+//	/* Third descriptor set */
+//	alloc_info =
+//	    vkb::initializers::descriptor_set_allocate_info(
+//	        descriptor_pool,
+//	        &descriptor_set_layouts.background,
+//	        1);
+//
+//	VK_CHECK(vkAllocateDescriptorSets(get_device().get_handle(), &alloc_info, &descriptor_sets.background));
+//
+//	VkDescriptorImageInfo background_image_descriptor = create_descriptor(textures.envmap);
+//
+//	write_descriptor_sets = {
+//	    vkb::initializers::write_descriptor_set(
+//	        descriptor_sets.background,
+//	        VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+//	        0,
+//	        &matrix_common_buffer_descriptor),
+//	    vkb::initializers::write_descriptor_set(
+//	        descriptor_sets.background,
+//	        VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+//	        1,
+//	        &background_image_descriptor)};
+//
+//	vkUpdateDescriptorSets(get_device().get_handle(), static_cast<uint32_t>(write_descriptor_sets.size()),
+//	                       write_descriptor_sets.data(), 0, VK_NULL_HANDLE);
 }
 
+//ZJ extendedDynamicState2PatchControlPoints ENABLE!!!
 /**
  * @fn void PatchControlPoints::request_gpu_features(vkb::PhysicalDevice &gpu)
  * @brief Enabling features related to Vulkan extensions
@@ -1090,7 +1178,16 @@ void PatchControlPoints::model_data_creation()
  */
 void PatchControlPoints::draw_created_triangles_model(VkCommandBuffer commandBuffer)
 {
+	VkDeviceSize offsets[1] = {0};
+	push_const_block.color  = glm::vec4{1.0f, 0.5f, 0.5f, 1.0f};
 
+	/* vkCmdPushConstants - TO BE REMOVED WHEN MODEL WILL ONLY BE USED IN TESSELLATION PIPELINE */
+	//vkCmdPushConstants(commandBuffer, pipeline_layouts.statically_tessellation, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(push_const_block), &push_const_block);
+	vkCmdBindVertexBuffers(commandBuffer, 0, 1, triangleModel.vertices_pos->get(), offsets);
+	vkCmdBindVertexBuffers(commandBuffer, 1, 1, triangleModel.vertices_norm->get(), offsets);
+	vkCmdBindIndexBuffer(commandBuffer, triangleModel.indices->get_handle(), 0, VK_INDEX_TYPE_UINT32);
+	//vkCmdSetPatchControlPointsEXT(commandBuffer, patchControlPoints);
+	vkCmdDrawIndexed(commandBuffer, triangleModel.index_count, 1, 0, 0, 0);
 }
 
 /**
@@ -1099,34 +1196,7 @@ void PatchControlPoints::draw_created_triangles_model(VkCommandBuffer commandBuf
  */
 void PatchControlPoints::triangles_model_data_creation()
 {
-
-}
-
-/**
- * @fn void PatchControlPoints::draw_created_quads_model(VkCommandBuffer commandBuffer)
- * @brief Drawing model created in function "quads_model_data_creation"
- */
-void PatchControlPoints::draw_created_quads_model(VkCommandBuffer commandBuffer)
-{
-	VkDeviceSize offsets[1] = {0};
-	push_const_block.color  = glm::vec4{1.0f, 0.5f, 0.5f, 1.0f};
-
-	/* vkCmdPushConstants - TO BE REMOVED WHEN MODEL WILL ONLY BE USED IN TESSELLATION PIPELINE */
-	vkCmdPushConstants(commandBuffer, pipeline_layouts.baseline, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(push_const_block), &push_const_block);
-	vkCmdBindVertexBuffers(commandBuffer, 0, 1, quadModel.vertices_pos->get(), offsets);
-	vkCmdBindVertexBuffers(commandBuffer, 1, 1, quadModel.vertices_norm->get(), offsets);
-	vkCmdBindIndexBuffer(commandBuffer, quadModel.indices->get_handle(), 0, VK_INDEX_TYPE_UINT32);
-	//vkCmdSetPatchControlPointsEXT(commandBuffer, patchControlPoints);
-	vkCmdDrawIndexed(commandBuffer, quadModel.index_count, 1, 0, 0, 0);
-}
-
-/**
- * @fn void PatchControlPoints::quads_model_data_creation()
- * @brief Creating model (basic quads) vertex data
- */
-void PatchControlPoints::quads_model_data_creation()
-{
-	/* Vertices position and normal vector of a quadModel made from 4 quad patches */
+	/* Vertices position and normal vector of a plane made from 4 quad patches */
 	std::vector<glm::vec3> vertices_pos{
 	    {0.0f, 0.0f, 0.0f},
 	    {0.5f, 0.0f, 0.0f},
@@ -1143,14 +1213,156 @@ void PatchControlPoints::quads_model_data_creation()
 	/* Scaling and position transform */
 	for (auto &vertex_pos : vertices_pos)
 	{
-		vertex_pos *= glm::vec3(5.0f, 5.0f, 5.0f);
-		vertex_pos += glm::vec3(3.0f, 2.0f, 0.0f);
+		vertex_pos *= glm::vec3( 5.0f,  5.0f, 5.0f);
+		vertex_pos += glm::vec3(-3.0f, -2.0f, 0.0f);
 	}
 
 	/* Array with vertices indexes for corresponding quad patches */
-	std::vector<uint32_t> indices{0, 1, 4, 3,
-	                              3, 4, 7, 6,
-	                              1, 2, 5, 4,
+	std::vector<uint32_t> indices{0, 1, 3, 
+	                              1, 4, 3, 
+	                              3, 4, 6, 
+	                              4, 7, 6, 
+	                              1, 2, 4, 
+	                              2, 5, 4, 
+	                              4, 5, 7, 
+	                              5, 8, 7};
+
+	triangleModel.index_count = static_cast<uint32_t>(indices.size());
+
+	auto vertex_buffer_size = vkb::to_u32(vertices_pos.size() * sizeof(glm::vec3));
+	auto index_buffer_size  = vkb::to_u32(indices.size() * sizeof(uint32_t));
+
+	struct
+	{
+		VkBuffer       buffer;
+		VkDeviceMemory memory;
+	} vertex_pos_staging, vertex_norm_staging, index_staging;
+
+	vertex_pos_staging.buffer = get_device().create_buffer(
+	    VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+	    VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+	    vertex_buffer_size,
+	    &vertex_pos_staging.memory,
+	    vertices_pos.data());
+
+	vertex_norm_staging.buffer = get_device().create_buffer(
+	    VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+	    VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+	    vertex_buffer_size,
+	    &vertex_norm_staging.memory,
+	    vertices_norm.data());
+
+	index_staging.buffer = get_device().create_buffer(
+	    VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+	    VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+	    index_buffer_size,
+	    &index_staging.memory,
+	    indices.data());
+
+	triangleModel.vertices_pos = std::make_unique<vkb::core::Buffer>(get_device(),
+	                                                         vertex_buffer_size,
+	                                                         VK_BUFFER_USAGE_VERTEX_BUFFER_BIT |
+	                                                             VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+	                                                         VMA_MEMORY_USAGE_GPU_ONLY);
+
+	triangleModel.vertices_norm = std::make_unique<vkb::core::Buffer>(get_device(),
+	                                                          vertex_buffer_size,
+	                                                          VK_BUFFER_USAGE_VERTEX_BUFFER_BIT |
+	                                                              VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+	                                                          VMA_MEMORY_USAGE_GPU_ONLY);
+
+	triangleModel.indices = std::make_unique<vkb::core::Buffer>(get_device(),
+	                                                    index_buffer_size,
+	                                                    VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+	                                                    VMA_MEMORY_USAGE_GPU_ONLY);
+
+	/* Copy from staging buffers */
+	VkCommandBuffer copy_command = device->create_command_buffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, true);
+
+	VkBufferCopy copy_region = {};
+
+	copy_region.size = vertex_buffer_size;
+	vkCmdCopyBuffer(
+	    copy_command,
+	    vertex_pos_staging.buffer,
+	    triangleModel.vertices_pos->get_handle(),
+	    1,
+	    &copy_region);
+
+	vkCmdCopyBuffer(
+	    copy_command,
+	    vertex_norm_staging.buffer,
+	    triangleModel.vertices_norm->get_handle(),
+	    1,
+	    &copy_region);
+
+	copy_region.size = index_buffer_size;
+	vkCmdCopyBuffer(
+	    copy_command,
+	    index_staging.buffer,
+	    triangleModel.indices->get_handle(),
+	    1,
+	    &copy_region);
+
+	device->flush_command_buffer(copy_command, queue, true);
+
+	vkDestroyBuffer(get_device().get_handle(), vertex_pos_staging.buffer, nullptr);
+	vkFreeMemory(get_device().get_handle(), vertex_pos_staging.memory, nullptr);
+	vkDestroyBuffer(get_device().get_handle(), vertex_norm_staging.buffer, nullptr);
+	vkFreeMemory(get_device().get_handle(), vertex_norm_staging.memory, nullptr);
+	vkDestroyBuffer(get_device().get_handle(), index_staging.buffer, nullptr);
+	vkFreeMemory(get_device().get_handle(), index_staging.memory, nullptr);
+}
+
+/**
+ * @fn void PatchControlPoints::draw_created_quads_model(VkCommandBuffer commandBuffer)
+ * @brief Drawing model created in function "quads_model_data_creation"
+ */
+void PatchControlPoints::draw_created_quads_model(VkCommandBuffer commandBuffer)
+{
+	VkDeviceSize offsets[1] = {0};
+	push_const_block.color  = glm::vec4{1.0f, 0.5f, 0.5f, 1.0f};
+
+	/* vkCmdPushConstants - TO BE REMOVED WHEN MODEL WILL ONLY BE USED IN TESSELLATION PIPELINE */
+	vkCmdPushConstants(commandBuffer, pipeline_layouts.statically_tessellation, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(push_const_block), &push_const_block);
+	vkCmdBindVertexBuffers(commandBuffer, 0, 1, quadModel.vertices_pos->get(), offsets);
+	vkCmdBindVertexBuffers(commandBuffer, 1, 1, quadModel.vertices_norm->get(), offsets);
+	vkCmdBindIndexBuffer(commandBuffer, quadModel.indices->get_handle(), 0, VK_INDEX_TYPE_UINT32);
+	//vkCmdSetPatchControlPointsEXT(commandBuffer, patchControlPoints);
+	vkCmdDrawIndexed(commandBuffer, quadModel.index_count, 1, 0, 0, 0);
+}
+
+/**
+ * @fn void PatchControlPoints::quads_model_data_creation()
+ * @brief Creating model (basic quads) vertex data
+ */
+void PatchControlPoints::quads_model_data_creation()
+{
+	/* Vertices position and normal vector of a quadModel made from 4 quad patches */
+	std::vector<glm::vec3> vertices_pos{
+	    {0.5f, 0.0f, 0.5f},
+	    {1.0f, 0.0f, 0.5f},
+	    {1.5f, 0.0f, 0.5f},
+	    {0.5f, 0.0f, 1.0f},
+	    {1.0f, 0.0f, 1.0f},
+	    {1.5f, 0.0f, 1.0f},
+	    {0.5f, 0.0f, 1.5f},
+	    {1.0f, 0.0f, 1.5f},
+	    {1.5f, 0.0f, 1.5f}};
+
+	std::vector<glm::vec3> vertices_norm(vertices_pos.size(), {1.0f, -1.0f, 0.0f});
+
+	/* Scaling and position transform */
+	for (auto &vertex_pos : vertices_pos)
+	{
+		vertex_pos *= glm::vec3(-5.0f, -5.0f, -5.0f);
+		vertex_pos += glm::vec3(1.0f, -2.0f, -3.0f);
+	}
+
+	/* Array with vertices indexes for corresponding quad patches */
+	std::vector<uint32_t> indices{0, 1, 4, 3, 
+	                              3, 4, 7, 6, 
+	                              1, 2, 5, 4, 
 	                              4, 5, 8, 7};
 
 	quadModel.index_count = static_cast<uint32_t>(indices.size());

@@ -16,9 +16,18 @@
  */
 #version 450
 
+layout(binding = 0) uniform UBO
+{
+	mat4  projection;
+	mat4  view;
+}
+ubo;
+
 layout(binding = 1) uniform UBOTessellation
 {
 	float tessellationFactor;
+	vec2 viewportDim;
+	float tessellatedEdgeSize;
 }
 ubo_tessellation;
 
@@ -30,27 +39,44 @@ layout(location = 1) in vec3 inNormal[];
 layout(location = 0) out vec3 outPos[3];
 layout(location = 1) out vec3 outNormal[3];
 
+// Calculate the tessellation factor based on screen space
+// dimensions of the edge
+//float screenSpaceTessFactor(vec4 p0, vec4 p1)
+//{
+//	
+//}
+
 void main()
 {
 	if (gl_InvocationID == 0)
 	{
-		if (ubo_tessellation.tessellationFactor > 0.0)
+		if (ubo_tessellation.tessellationFactor < 0.0) // (ubo_tessellation.tessellationFactor > 0.0)
 		{
-			gl_TessLevelInner[0] = ubo_tessellation.tessellationFactor;
-			gl_TessLevelInner[1] = ubo_tessellation.tessellationFactor;
-			gl_TessLevelOuter[0] = ubo_tessellation.tessellationFactor;
-			gl_TessLevelOuter[1] = ubo_tessellation.tessellationFactor;
-			gl_TessLevelOuter[2] = ubo_tessellation.tessellationFactor;
-			gl_TessLevelOuter[3] = ubo_tessellation.tessellationFactor;
+//		gl_TessLevelOuter[0] = ubo_tessellation.tessellationFactor;
+//		gl_TessLevelOuter[1] = ubo_tessellation.tessellationFactor;
+//		gl_TessLevelOuter[2] = ubo_tessellation.tessellationFactor;
+//		gl_TessLevelOuter[3] = ubo_tessellation.tessellationFactor;
+//		gl_TessLevelInner[0] = ubo_tessellation.tessellationFactor; //mix(gl_TessLevelOuter[0], gl_TessLevelOuter[3], 0.5);
+//		gl_TessLevelInner[1] = ubo_tessellation.tessellationFactor; //mix(gl_TessLevelOuter[2], gl_TessLevelOuter[1], 0.5);
+
+		gl_TessLevelOuter[0] = ubo_tessellation.tessellationFactor;
+		gl_TessLevelOuter[1] = ubo_tessellation.tessellationFactor;
+		gl_TessLevelOuter[2] = ubo_tessellation.tessellationFactor;
+		gl_TessLevelInner[0] = ubo_tessellation.tessellationFactor;
 		}
 		else
 		{
-			gl_TessLevelInner[0] = 1;
-			gl_TessLevelInner[1] = 1;
-			gl_TessLevelOuter[0] = 1;
-			gl_TessLevelOuter[1] = 1;
-			gl_TessLevelOuter[2] = 1;
-			gl_TessLevelOuter[3] = 1;
+//		gl_TessLevelOuter[0] = 1;
+//		gl_TessLevelOuter[1] = 1;
+//		gl_TessLevelOuter[2] = 1;
+//		gl_TessLevelOuter[3] = 1;
+//		gl_TessLevelInner[0] = 1;
+//		gl_TessLevelInner[1] = 1;
+
+		gl_TessLevelOuter[0] = 1;
+		gl_TessLevelOuter[1] = 1;
+		gl_TessLevelOuter[2] = 1;
+		gl_TessLevelInner[0] = 1;
 		}
 	}
 

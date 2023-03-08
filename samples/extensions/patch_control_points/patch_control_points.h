@@ -35,8 +35,8 @@ class PatchControlPoints : public ApiVulkanSample
 
 	struct
 	{
-		bool                           tessellation = false;
-		float                          tess_factor  = 1.0f;
+		bool                           tessellation     = false;
+		float                          tess_factor      = 1.0f;
 		std::vector<ModelDynamicParam> objects;
 		int                            selected_obj     = 0;
 		bool                           selection_active = true;
@@ -52,15 +52,17 @@ class PatchControlPoints : public ApiVulkanSample
 
 	struct UBOBAS
 	{
-		glm::vec4 ambientLightColor = glm::vec4(1.f, 1.f, 1.f, 0.1f);
+		glm::vec4 ambientLightColor = glm::vec4( 1.0f,  1.0f, 1.0f,  0.1f);
 		glm::vec4 lightPosition     = glm::vec4(-3.0f, -8.0f, 6.0f, -1.0f);
-		glm::vec4 lightColor        = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
+		glm::vec4 lightColor        = glm::vec4( 1.0f,  1.0f, 1.0f,  1.0f);
 		float     lightIntensity    = 50.0f;
 	} ubo_baseline;
 
 	struct UBOTESS
 	{
-		float tessellation_factor = 1.0f;
+		float tessellation_factor   =  1.0f; // 0.75f;
+		glm::vec2 viewport_dim;
+		float tessellated_edge_size = 20.0f;
 	} ubo_tess;
 
 	VkDescriptorPool descriptor_pool{VK_NULL_HANDLE};
@@ -68,36 +70,45 @@ class PatchControlPoints : public ApiVulkanSample
 	struct
 	{
 		VkDescriptorSetLayout baseline{VK_NULL_HANDLE};
-		VkDescriptorSetLayout tesselation{VK_NULL_HANDLE};
-		VkDescriptorSetLayout background{VK_NULL_HANDLE};
+		VkDescriptorSetLayout statically_tessellation{VK_NULL_HANDLE};
+		VkDescriptorSetLayout dynamically_tessellation{VK_NULL_HANDLE};
+//	ZJ 1
+//		VkDescriptorSetLayout background{VK_NULL_HANDLE};
 	} descriptor_set_layouts;
 
 	struct
 	{
 		VkPipelineLayout baseline{VK_NULL_HANDLE};
-		VkPipelineLayout tesselation{VK_NULL_HANDLE};
-		VkPipelineLayout background{VK_NULL_HANDLE};
+		VkPipelineLayout statically_tessellation{VK_NULL_HANDLE};
+		VkPipelineLayout dynamically_tessellation{VK_NULL_HANDLE};
+//	ZJ 1
+//		VkPipelineLayout background{VK_NULL_HANDLE};
 	} pipeline_layouts;
 
 	struct
 	{
 		VkDescriptorSet baseline{VK_NULL_HANDLE};
-		VkDescriptorSet tesselation{VK_NULL_HANDLE};
-		VkDescriptorSet background{VK_NULL_HANDLE};
+		VkDescriptorSet statically_tessellation{VK_NULL_HANDLE};
+		VkDescriptorSet dynamically_tessellation{VK_NULL_HANDLE};
+//	ZJ 1
+//		VkDescriptorSet background{VK_NULL_HANDLE};
 	} descriptor_sets;
 
 	struct
 	{
 		VkPipeline baseline{VK_NULL_HANDLE};
-		VkPipeline tesselation{VK_NULL_HANDLE};
-		VkPipeline background{VK_NULL_HANDLE};
+		VkPipeline statically_tessellation{VK_NULL_HANDLE};
+		VkPipeline dynamically_tessellation{VK_NULL_HANDLE};
+//	ZJ 1
+//		VkPipeline background{VK_NULL_HANDLE};
 	} pipeline;
 
 	struct
 	{
 		std::unique_ptr<vkb::core::Buffer> common;
 		std::unique_ptr<vkb::core::Buffer> baseline;
-		std::unique_ptr<vkb::core::Buffer> tesselation;
+		std::unique_ptr<vkb::core::Buffer> statically_tessellation;
+		std::unique_ptr<vkb::core::Buffer> dynamically_tessellation;
 	} uniform_buffers;
 
 	struct
@@ -119,6 +130,12 @@ class PatchControlPoints : public ApiVulkanSample
 	};
 	std::vector<SceneNode> scene_elements_baseline;
 	std::vector<SceneNode> scene_elements_tess;
+
+	struct Models
+	{
+		std::unique_ptr<vkb::sg::SubMesh> terrain_one;
+		std::unique_ptr<vkb::sg::SubMesh> terrain_two;
+	} models;
 
 	std::unique_ptr<vkb::sg::SubMesh> background_model;
 
