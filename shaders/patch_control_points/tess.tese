@@ -23,13 +23,6 @@ layout(binding = 0) uniform UBO
 }
 ubo;
 
-layout(push_constant) uniform Push_Constants
-{
-	mat4 model;
-	vec4 color;
-}
-push_constants;
-
 layout(triangles, equal_spacing, cw) in;
 
 layout(location = 0) in vec3 inPos[];
@@ -54,5 +47,5 @@ void main()
 {
 	vec4 pos = interpolate3D(gl_in[0].gl_Position, gl_in[1].gl_Position, gl_in[2].gl_Position);
 
-	gl_Position = ubo.projection * ubo.view * push_constants.model * pos;
+	gl_Position = ubo.projection * ubo.view * pos;
 }
