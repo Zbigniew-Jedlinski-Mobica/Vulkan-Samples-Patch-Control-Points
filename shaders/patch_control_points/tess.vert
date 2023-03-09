@@ -29,9 +29,16 @@ layout(binding = 0) uniform UBO
 }
 ubo;
 
+layout(push_constant) uniform Push_Constants
+{
+	vec3 direction;
+}
+push_constants;
+
+
 void main(void)
 {
-	gl_Position = vec4(inPos, 1.0);
+	gl_Position = vec4(inPos + push_constants.direction, 1.0);
 	outNormal   = mat3(ubo.view) * inNormal;
-	outPos      = inPos;
+	outPos      = inPos + push_constants.direction;
 }

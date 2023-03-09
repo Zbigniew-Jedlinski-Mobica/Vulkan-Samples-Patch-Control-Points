@@ -16,12 +16,12 @@
  */
 #version 450
 
-layout(binding = 0) uniform UBO
-{
-	mat4  projection;
-	mat4  view;
-}
-ubo;
+//layout(binding = 0) uniform UBO // it is not passed to this shader
+//{
+//	mat4  projection;
+//	mat4  view;
+//}
+//ubo;
 
 layout(binding = 1) uniform UBOTessellation
 {
@@ -50,7 +50,8 @@ void main()
 {
 	if (gl_InvocationID == 0)
 	{
-		if (ubo_tessellation.tessellationFactor < 0.0) // (ubo_tessellation.tessellationFactor > 0.0)
+		//if (ubo_tessellation.tessellationFactor < 0.0) // 
+		if (ubo_tessellation.tessellationFactor > 0.0)
 		{
 //		gl_TessLevelOuter[0] = ubo_tessellation.tessellationFactor;
 //		gl_TessLevelOuter[1] = ubo_tessellation.tessellationFactor;

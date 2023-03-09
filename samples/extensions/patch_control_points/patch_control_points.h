@@ -29,9 +29,9 @@ class PatchControlPoints : public ApiVulkanSample
   public:
 	struct
 	{
-		bool                           tessellation     = false;
-		float                          tess_factor      = 1.0f;
-		bool                           time_tick        = false;
+		bool  tessellation = false;
+		float tess_factor  = 1.0f;
+		bool  time_tick    = false;
 	} gui_settings;
 
 	/* Buffer used in both pipelines */
@@ -43,9 +43,9 @@ class PatchControlPoints : public ApiVulkanSample
 
 	struct UBOTESS
 	{
-		float tessellation_factor   =  1.0f; // 0.75f;
+		float     tessellation_factor = 1.0f;        // 0.75f;
 		glm::vec2 viewport_dim;
-		float tessellated_edge_size = 20.0f;
+		float     tessellated_edge_size = 20.0f;
 	} ubo_tess;
 
 	VkDescriptorPool descriptor_pool{VK_NULL_HANDLE};
@@ -83,8 +83,7 @@ class PatchControlPoints : public ApiVulkanSample
 
 	struct
 	{
-		glm::mat4 model_matrix;
-		glm::vec4 color;
+		glm::vec3 direction;
 	} push_const_block;
 
 	struct SceneNode
@@ -123,14 +122,11 @@ class PatchControlPoints : public ApiVulkanSample
 	void create_pipelines();
 	void draw();
 
-	void      load_assets();
-	void      create_descriptor_pool();
-	void      setup_descriptor_set_layout();
-	void      create_descriptor_sets();
-	void      draw_created_triangles_model(VkCommandBuffer commandBuffer);
-	void      triangles_model_data_creation();
-	void      draw_created_quads_model(VkCommandBuffer commandBuffer);
-	void      quads_model_data_creation();
+	void load_assets();
+	void create_descriptor_pool();
+	void setup_descriptor_set_layout();
+	void create_descriptor_sets();
+	void draw_created_triangles_model(VkCommandBuffer commandBuffer);
 };
 
 std::unique_ptr<vkb::VulkanSample> create_patch_control_points();
