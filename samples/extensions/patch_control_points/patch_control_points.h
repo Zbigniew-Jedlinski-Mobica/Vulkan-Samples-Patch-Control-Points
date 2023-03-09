@@ -34,7 +34,7 @@ class PatchControlPoints : public ApiVulkanSample
 		bool                           time_tick        = false;
 	} gui_settings;
 
-	/* Buffer used in all pipelines */
+	/* Buffer used in both pipelines */
 	struct UBOCOMM
 	{
 		glm::mat4 projection;
@@ -52,28 +52,24 @@ class PatchControlPoints : public ApiVulkanSample
 
 	struct
 	{
-		VkDescriptorSetLayout baseline{VK_NULL_HANDLE};
 		VkDescriptorSetLayout statically_tessellation{VK_NULL_HANDLE};
 		VkDescriptorSetLayout dynamically_tessellation{VK_NULL_HANDLE};
 	} descriptor_set_layouts;
 
 	struct
 	{
-		VkPipelineLayout baseline{VK_NULL_HANDLE};
 		VkPipelineLayout statically_tessellation{VK_NULL_HANDLE};
 		VkPipelineLayout dynamically_tessellation{VK_NULL_HANDLE};
 	} pipeline_layouts;
 
 	struct
 	{
-		VkDescriptorSet baseline{VK_NULL_HANDLE};
 		VkDescriptorSet statically_tessellation{VK_NULL_HANDLE};
 		VkDescriptorSet dynamically_tessellation{VK_NULL_HANDLE};
 	} descriptor_sets;
 
 	struct
 	{
-		VkPipeline baseline{VK_NULL_HANDLE};
 		VkPipeline statically_tessellation{VK_NULL_HANDLE};
 		VkPipeline dynamically_tessellation{VK_NULL_HANDLE};
 	} pipeline;
