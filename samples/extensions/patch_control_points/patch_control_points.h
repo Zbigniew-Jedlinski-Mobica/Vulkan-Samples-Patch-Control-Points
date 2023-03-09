@@ -27,19 +27,10 @@
 class PatchControlPoints : public ApiVulkanSample
 {
   public:
-	typedef struct ModelDynamicParam
-	{
-		bool depth_bias         = false;
-		bool rasterizer_discard = false;
-	} ModelDynamicParam;
-
 	struct
 	{
 		bool                           tessellation     = false;
 		float                          tess_factor      = 1.0f;
-		std::vector<ModelDynamicParam> objects;
-		int                            selected_obj     = 0;
-		bool                           selection_active = true;
 		bool                           time_tick        = false;
 	} gui_settings;
 
@@ -49,14 +40,6 @@ class PatchControlPoints : public ApiVulkanSample
 		glm::mat4 projection;
 		glm::mat4 view;
 	} ubo_common;
-
-	struct UBOBAS
-	{
-		glm::vec4 ambientLightColor = glm::vec4( 1.0f,  1.0f, 1.0f,  0.1f);
-		glm::vec4 lightPosition     = glm::vec4(-3.0f, -8.0f, 6.0f, -1.0f);
-		glm::vec4 lightColor        = glm::vec4( 1.0f,  1.0f, 1.0f,  1.0f);
-		float     lightIntensity    = 50.0f;
-	} ubo_baseline;
 
 	struct UBOTESS
 	{
@@ -72,8 +55,6 @@ class PatchControlPoints : public ApiVulkanSample
 		VkDescriptorSetLayout baseline{VK_NULL_HANDLE};
 		VkDescriptorSetLayout statically_tessellation{VK_NULL_HANDLE};
 		VkDescriptorSetLayout dynamically_tessellation{VK_NULL_HANDLE};
-//	ZJ 1
-//		VkDescriptorSetLayout background{VK_NULL_HANDLE};
 	} descriptor_set_layouts;
 
 	struct
@@ -81,8 +62,6 @@ class PatchControlPoints : public ApiVulkanSample
 		VkPipelineLayout baseline{VK_NULL_HANDLE};
 		VkPipelineLayout statically_tessellation{VK_NULL_HANDLE};
 		VkPipelineLayout dynamically_tessellation{VK_NULL_HANDLE};
-//	ZJ 1
-//		VkPipelineLayout background{VK_NULL_HANDLE};
 	} pipeline_layouts;
 
 	struct
@@ -90,8 +69,6 @@ class PatchControlPoints : public ApiVulkanSample
 		VkDescriptorSet baseline{VK_NULL_HANDLE};
 		VkDescriptorSet statically_tessellation{VK_NULL_HANDLE};
 		VkDescriptorSet dynamically_tessellation{VK_NULL_HANDLE};
-//	ZJ 1
-//		VkDescriptorSet background{VK_NULL_HANDLE};
 	} descriptor_sets;
 
 	struct
@@ -99,22 +76,14 @@ class PatchControlPoints : public ApiVulkanSample
 		VkPipeline baseline{VK_NULL_HANDLE};
 		VkPipeline statically_tessellation{VK_NULL_HANDLE};
 		VkPipeline dynamically_tessellation{VK_NULL_HANDLE};
-//	ZJ 1
-//		VkPipeline background{VK_NULL_HANDLE};
 	} pipeline;
 
 	struct
 	{
 		std::unique_ptr<vkb::core::Buffer> common;
-		std::unique_ptr<vkb::core::Buffer> baseline;
 		std::unique_ptr<vkb::core::Buffer> statically_tessellation;
 		std::unique_ptr<vkb::core::Buffer> dynamically_tessellation;
 	} uniform_buffers;
-
-	struct
-	{
-		Texture envmap;
-	} textures;
 
 	struct
 	{
@@ -128,7 +97,6 @@ class PatchControlPoints : public ApiVulkanSample
 		vkb::sg::Node    *node;
 		vkb::sg::SubMesh *sub_mesh;
 	};
-	std::vector<SceneNode> scene_elements_baseline;
 	std::vector<SceneNode> scene_elements_tess;
 
 	struct Models
@@ -137,18 +105,16 @@ class PatchControlPoints : public ApiVulkanSample
 		std::unique_ptr<vkb::sg::SubMesh> terrain_two;
 	} models;
 
-	std::unique_ptr<vkb::sg::SubMesh> background_model;
-
 	struct Cube
 	{
 		std::unique_ptr<vkb::core::Buffer> vertices_pos;
 		std::unique_ptr<vkb::core::Buffer> vertices_norm;
 		std::unique_ptr<vkb::core::Buffer> indices;
 		uint32_t                           index_count;
-	} cube, quadModel, triangleModel;
+	} quadModel, triangleModel;
 
 	PatchControlPoints();
-	~PatchControlPoints();
+	~PatchControlPoints() override;
 
 	void render(float delta_time) override;
 	void build_command_buffers() override;
@@ -165,11 +131,6 @@ class PatchControlPoints : public ApiVulkanSample
 	void      create_descriptor_pool();
 	void      setup_descriptor_set_layout();
 	void      create_descriptor_sets();
-	glm::vec4 get_changed_alpha(const vkb::sg::PBRMaterial *original_mat);
-	void      scene_pipeline_divide(std::vector<SceneNode> const &scene_node);
-	void      draw_from_scene(VkCommandBuffer command_buffer, std::vector<SceneNode> const &scene_node);
-	void      draw_created_model(VkCommandBuffer commandBuffer);
-	void      model_data_creation();
 	void      draw_created_triangles_model(VkCommandBuffer commandBuffer);
 	void      triangles_model_data_creation();
 	void      draw_created_quads_model(VkCommandBuffer commandBuffer);
