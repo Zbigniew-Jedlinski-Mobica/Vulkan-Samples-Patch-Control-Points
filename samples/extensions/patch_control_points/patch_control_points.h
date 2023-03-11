@@ -86,27 +86,11 @@ class PatchControlPoints : public ApiVulkanSample
 		glm::vec3 direction;
 	} push_const_block;
 
-	struct SceneNode
-	{
-		std::string       name;
-		vkb::sg::Node    *node;
-		vkb::sg::SubMesh *sub_mesh;
-	};
-	std::vector<SceneNode> scene_elements_tess;
-
 	struct Models
 	{
 		std::unique_ptr<vkb::sg::SubMesh> terrain_one;
 		std::unique_ptr<vkb::sg::SubMesh> terrain_two;
 	} models;
-
-	struct Cube
-	{
-		std::unique_ptr<vkb::core::Buffer> vertices_pos;
-		std::unique_ptr<vkb::core::Buffer> vertices_norm;
-		std::unique_ptr<vkb::core::Buffer> indices;
-		uint32_t                           index_count;
-	} quadModel, triangleModel;
 
 	PatchControlPoints();
 	~PatchControlPoints() override;
