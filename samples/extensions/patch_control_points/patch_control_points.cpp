@@ -43,13 +43,13 @@ PatchControlPoints::~PatchControlPoints()
 		uniform_buffers.statically_tessellation.reset();
 
 		vkDestroyPipeline(get_device().get_handle(), pipeline.dynamically_tessellation, VK_NULL_HANDLE);
-		vkDestroyPipeline(get_device().get_handle(), pipeline.statically_tessellation,  VK_NULL_HANDLE);
+		vkDestroyPipeline(get_device().get_handle(), pipeline.statically_tessellation, VK_NULL_HANDLE);
 
 		vkDestroyPipelineLayout(get_device().get_handle(), pipeline_layouts.dynamically_tessellation, VK_NULL_HANDLE);
-		vkDestroyPipelineLayout(get_device().get_handle(), pipeline_layouts.statically_tessellation,  VK_NULL_HANDLE);
+		vkDestroyPipelineLayout(get_device().get_handle(), pipeline_layouts.statically_tessellation, VK_NULL_HANDLE);
 
 		vkDestroyDescriptorSetLayout(get_device().get_handle(), descriptor_set_layouts.dynamically_tessellation, VK_NULL_HANDLE);
-		vkDestroyDescriptorSetLayout(get_device().get_handle(), descriptor_set_layouts.statically_tessellation,  VK_NULL_HANDLE);
+		vkDestroyDescriptorSetLayout(get_device().get_handle(), descriptor_set_layouts.statically_tessellation, VK_NULL_HANDLE);
 
 		vkDestroyDescriptorPool(get_device().get_handle(), descriptor_pool, VK_NULL_HANDLE);
 	}
@@ -88,8 +88,7 @@ bool PatchControlPoints::prepare(vkb::Platform &platform)
  */
 void PatchControlPoints::load_assets()
 {
-	models.terrain_one = load_model("scenes/terrain.gltf");
-	models.terrain_two = load_model("scenes/terrain.gltf");
+	model = load_model("scenes/terrain.gltf");
 }
 
 /**
@@ -129,17 +128,17 @@ void PatchControlPoints::render(float delta_time)
 void PatchControlPoints::prepare_uniform_buffers()
 {
 	uniform_buffers.common                   = std::make_unique<vkb::core::Buffer>(get_device(),
-                                                                                   sizeof(ubo_common),
-                                                                                   VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-                                                                                   VMA_MEMORY_USAGE_CPU_TO_GPU);
+                                                                 sizeof(ubo_common),
+                                                                 VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+                                                                 VMA_MEMORY_USAGE_CPU_TO_GPU);
 	uniform_buffers.dynamically_tessellation = std::make_unique<vkb::core::Buffer>(get_device(),
 	                                                                               sizeof(ubo_tess),
 	                                                                               VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
 	                                                                               VMA_MEMORY_USAGE_CPU_TO_GPU);
 	uniform_buffers.statically_tessellation  = std::make_unique<vkb::core::Buffer>(get_device(),
-                                                                                   sizeof(ubo_tess),
-                                                                                   VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-                                                                                   VMA_MEMORY_USAGE_CPU_TO_GPU);
+                                                                                  sizeof(ubo_tess),
+                                                                                  VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+                                                                                  VMA_MEMORY_USAGE_CPU_TO_GPU);
 	update_uniform_buffers();
 }
 
@@ -176,22 +175,25 @@ void PatchControlPoints::update_uniform_buffers()
  */
 void PatchControlPoints::create_pipelines()
 {
-	/* Setup for first pipeline */
+	/* Setup for pipelines */
 	VkPipelineInputAssemblyStateCreateInfo input_assembly_state =
 	    vkb::initializers::pipeline_input_assembly_state_create_info(
-	        VK_PRIMITIVE_TOPOLOGY_PATCH_LIST, 
-	        0, 
+	        VK_PRIMITIVE_TOPOLOGY_PATCH_LIST, /* used in tessellation */
+	        0,
 	        VK_FALSE);
 
 	VkPipelineRasterizationStateCreateInfo rasterization_state =
 	    vkb::initializers::pipeline_rasterization_state_create_info(
-	        VK_POLYGON_MODE_FILL, 
-	        VK_CULL_MODE_BACK_BIT, 
-	        VK_FRONT_FACE_COUNTER_CLOCKWISE, 
+	        VK_POLYGON_MODE_FILL,
+	        VK_CULL_MODE_FRONT_BIT,
+	        VK_FRONT_FACE_COUNTER_CLOCKWISE,
 	        0);
 
-	rasterization_state.depthBiasConstantFactor = 1.0f;
-	rasterization_state.depthBiasSlopeFactor    = 1.0f;
+	/* Wireframe mode */
+	if (get_device().get_gpu().get_features().fillModeNonSolid)
+	{
+		rasterization_state.polygonMode = VK_POLYGON_MODE_LINE;
+	}
 
 	VkPipelineColorBlendAttachmentState blend_attachment_state =
 	    vkb::initializers::pipeline_color_blend_attachment_state(
@@ -213,8 +215,8 @@ void PatchControlPoints::create_pipelines()
 	/* Note: Using Reversed depth-buffer for increased precision, so Greater depth values are kept */
 	VkPipelineDepthStencilStateCreateInfo depth_stencil_state =
 	    vkb::initializers::pipeline_depth_stencil_state_create_info(
-	        VK_TRUE,
-	        VK_TRUE,
+	        VK_TRUE, /* depthTestEnable */
+	        VK_TRUE, /* depthWriteEnable */
 	        VK_COMPARE_OP_GREATER);
 
 	VkPipelineViewportStateCreateInfo viewport_state =
@@ -225,13 +227,9 @@ void PatchControlPoints::create_pipelines()
 	        VK_SAMPLE_COUNT_1_BIT,
 	        0);
 
-	VkPipelineTessellationStateCreateInfo tessellation_state =
-	    vkb::initializers::pipeline_tessellation_state_create_info(3);
-
 	std::vector<VkDynamicState> dynamic_state_enables = {
 	    VK_DYNAMIC_STATE_VIEWPORT,
-	    VK_DYNAMIC_STATE_SCISSOR
-	};
+	    VK_DYNAMIC_STATE_SCISSOR};
 	VkPipelineDynamicStateCreateInfo dynamic_state =
 	    vkb::initializers::pipeline_dynamic_state_create_info(
 	        dynamic_state_enables.data(),
@@ -256,11 +254,15 @@ void PatchControlPoints::create_pipelines()
 	vertex_input_state.pVertexAttributeDescriptions         = vertex_input_attributes.data();
 
 	std::array<VkPipelineShaderStageCreateInfo, 4> shader_stages{};
+	shader_stages[0] = load_shader("patch_control_points/tess.vert", VK_SHADER_STAGE_VERTEX_BIT);
+	shader_stages[1] = load_shader("patch_control_points/tess.frag", VK_SHADER_STAGE_FRAGMENT_BIT);
+	shader_stages[2] = load_shader("patch_control_points/tess.tesc", VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT);
+	shader_stages[3] = load_shader("patch_control_points/tess.tese", VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT);
 
 	/* Use the pNext to point to the rendering create struct */
 	VkGraphicsPipelineCreateInfo graphics_create{VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO};
 	graphics_create.pNext               = VK_NULL_HANDLE;
-	graphics_create.renderPass          = VK_NULL_HANDLE;
+	graphics_create.renderPass          = render_pass;
 	graphics_create.pInputAssemblyState = &input_assembly_state;
 	graphics_create.pRasterizationState = &rasterization_state;
 	graphics_create.pColorBlendState    = &color_blend_state;
@@ -269,76 +271,33 @@ void PatchControlPoints::create_pipelines()
 	graphics_create.pDepthStencilState  = &depth_stencil_state;
 	graphics_create.pDynamicState       = &dynamic_state;
 	graphics_create.pVertexInputState   = &vertex_input_state;
-	graphics_create.pTessellationState  = VK_NULL_HANDLE;
-	graphics_create.stageCount          = 2;
+	graphics_create.stageCount          = static_cast<uint32_t>(shader_stages.size());
 	graphics_create.pStages             = shader_stages.data();
 
-	graphics_create.pNext      = VK_NULL_HANDLE;
-	graphics_create.renderPass = render_pass;
+	/* Specific setup of statically_tessellation pipeline */
 
-	/* First tessellation list */
-	/* Setup for statically_tessellation pipeline */
+	constexpr uint32_t                    patch_control_points = 3;
+	VkPipelineTessellationStateCreateInfo tessellation_state =
+	    vkb::initializers::pipeline_tessellation_state_create_info(patch_control_points); /* static patch control points */
 	graphics_create.pTessellationState = &tessellation_state;
 	graphics_create.layout             = pipeline_layouts.statically_tessellation;
-	input_assembly_state.topology      = VK_PRIMITIVE_TOPOLOGY_PATCH_LIST;
 
-	vertex_input_state.vertexBindingDescriptionCount   = static_cast<uint32_t>(vertex_input_bindings.size());
-	vertex_input_state.pVertexBindingDescriptions      = vertex_input_bindings.data();
-	vertex_input_state.vertexAttributeDescriptionCount = static_cast<uint32_t>(vertex_input_attributes.size());
-	vertex_input_state.pVertexAttributeDescriptions    = vertex_input_attributes.data();
-
-	/* Wireframe mode */
-	if (get_device().get_gpu().get_features().fillModeNonSolid)
-	{
-		rasterization_state.polygonMode = VK_POLYGON_MODE_LINE;
-	}
-
-	shader_stages[0]           = load_shader("patch_control_points/tess.vert", VK_SHADER_STAGE_VERTEX_BIT);
-	shader_stages[1]           = load_shader("patch_control_points/tess.frag", VK_SHADER_STAGE_FRAGMENT_BIT);
-	shader_stages[2]           = load_shader("patch_control_points/tess.tesc", VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT);
-	shader_stages[3]           = load_shader("patch_control_points/tess.tese", VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT);
-	graphics_create.stageCount = static_cast<uint32_t>(shader_stages.size());
-	graphics_create.pStages    = shader_stages.data();
-	/* Enable depth test and write */
-	depth_stencil_state.depthWriteEnable = VK_TRUE;
-	depth_stencil_state.depthTestEnable  = VK_TRUE;
-	/* Flip cull mode */
-	rasterization_state.cullMode = VK_CULL_MODE_NONE;
 	VK_CHECK(vkCreateGraphicsPipelines(get_device().get_handle(), pipeline_cache, 1, &graphics_create, VK_NULL_HANDLE, &pipeline.statically_tessellation));
 
-	/* Second tessellation list */
-	/* Setup for dynamically_tessellation pipeline */
-	graphics_create.pTessellationState = &tessellation_state;
-	graphics_create.layout             = pipeline_layouts.dynamically_tessellation;
-	input_assembly_state.topology      = VK_PRIMITIVE_TOPOLOGY_PATCH_LIST;
+	/* Specific setup of dynamically_tessellation pipeline  */
 
-//	// Zmiana do dynamicznej teselacji
-//	dynamic_state_enables.push_back(VK_DYNAMIC_STATE_PATCH_CONTROL_POINTS_EXT);
-//	dynamic_state.pDynamicStates    = dynamic_state_enables.data();
-//	dynamic_state.dynamicStateCount = static_cast<uint32_t>(dynamic_state_enables.size());
-	
-	vertex_input_state.vertexBindingDescriptionCount   = static_cast<uint32_t>(vertex_input_bindings.size());
-	vertex_input_state.pVertexBindingDescriptions      = vertex_input_bindings.data();
-	vertex_input_state.vertexAttributeDescriptionCount = static_cast<uint32_t>(vertex_input_attributes.size());
-	vertex_input_state.pVertexAttributeDescriptions    = vertex_input_attributes.data();
-	
-	/* Wireframe mode */
-	if (get_device().get_gpu().get_features().fillModeNonSolid)
-	{
-		rasterization_state.polygonMode = VK_POLYGON_MODE_LINE;
-	}
-	
-	shader_stages[0]           = load_shader("patch_control_points/tess.vert", VK_SHADER_STAGE_VERTEX_BIT);
-	shader_stages[1]           = load_shader("patch_control_points/tess.frag", VK_SHADER_STAGE_FRAGMENT_BIT);
-	shader_stages[2]           = load_shader("patch_control_points/tess.tesc", VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT);
-	shader_stages[3]           = load_shader("patch_control_points/tess.tese", VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT);
-	graphics_create.stageCount = static_cast<uint32_t>(shader_stages.size());
-	graphics_create.pStages    = shader_stages.data();
-	/* Enable depth test and write */
-	depth_stencil_state.depthWriteEnable = VK_TRUE;
-	depth_stencil_state.depthTestEnable  = VK_TRUE;
-	/* Flip cull mode */
-	rasterization_state.cullMode = VK_CULL_MODE_NONE;
+	/*
+	 * patchControlPoints might be set with any valid value i.e. 0 < patchControlPoints <= 32
+	 * because it is set dynamically using vkCmdSetPatchControlPointsEXT
+	 */
+	tessellation_state.patchControlPoints = 1; /* set to 1 to demonstrate that value from vkCmdSetPatchControlPointsEXT is used */
+	graphics_create.layout                = pipeline_layouts.dynamically_tessellation;
+
+	/* Add patch control points dynamic state */
+	dynamic_state_enables.push_back(VK_DYNAMIC_STATE_PATCH_CONTROL_POINTS_EXT);
+	dynamic_state.pDynamicStates    = dynamic_state_enables.data();
+	dynamic_state.dynamicStateCount = static_cast<uint32_t>(dynamic_state_enables.size());
+
 	VK_CHECK(vkCreateGraphicsPipelines(get_device().get_handle(), VK_NULL_HANDLE, 1, &graphics_create, VK_NULL_HANDLE, &pipeline.dynamically_tessellation));
 }
 
@@ -354,10 +313,10 @@ void PatchControlPoints::build_command_buffers()
 	clear_values[0].color        = {{0.0f, 0.0f, 0.0f, 0.0f}};
 	clear_values[1].depthStencil = {0.0f, 0};
 
-	const std::array<glm::vec3, 2> directions = {glm::vec3(-6.00f,  0.0f, 0.0f),  /* first model */
-	                                             glm::vec3(-3.95f,  0.0f, 0.0f)}; /* second model */
+	const std::array<glm::vec3, 2> directions = {glm::vec3(-6.00f, 0.0f, 0.0f),  /* first model */
+	                                             glm::vec3(-3.95f, 0.0f, 0.0f)}; /* second model */
 
-	constexpr uint32_t patch_control_points_triangle = 3;
+	constexpr uint32_t patch_control_points = 3;
 
 	int i = -1; /* Required for accessing element in framebuffers vector */
 	for (auto &draw_cmd_buffer : draw_cmd_buffers)
@@ -382,10 +341,6 @@ void PatchControlPoints::build_command_buffers()
 		VkRect2D scissor = vkb::initializers::rect2D(static_cast<int>(width), static_cast<int>(height), 0, 0);
 		vkCmdSetScissor(draw_cmd_buffer, 0, 1, &scissor);
 
-		//	statically tessellation
-		vkCmdSetPrimitiveTopologyEXT(draw_cmd_buffer, VK_PRIMITIVE_TOPOLOGY_PATCH_LIST);
-		vkCmdSetPrimitiveRestartEnableEXT(draw_cmd_buffer, VK_TRUE);
-
 		vkCmdBindDescriptorSets(draw_cmd_buffer,
 		                        VK_PIPELINE_BIND_POINT_GRAPHICS,
 		                        pipeline_layouts.statically_tessellation,
@@ -396,20 +351,18 @@ void PatchControlPoints::build_command_buffers()
 		                        nullptr);
 
 		push_const_block.direction = directions[0];
-		vkCmdPushConstants(draw_cmd_buffer, 
-		                   pipeline_layouts.statically_tessellation, 
-						   VK_SHADER_STAGE_VERTEX_BIT, 
-						   0, 
-		                   sizeof(push_const_block), 
-						   &push_const_block);
+		vkCmdPushConstants(draw_cmd_buffer,
+		                   pipeline_layouts.statically_tessellation,
+		                   VK_SHADER_STAGE_VERTEX_BIT,
+		                   0,
+		                   sizeof(push_const_block),
+		                   &push_const_block);
 
 		vkCmdBindPipeline(draw_cmd_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.statically_tessellation);
-		draw_model(models.terrain_one, draw_cmd_buffer);
+
+		draw_model(model, draw_cmd_buffer);
 
 		//	dynamiclly tessellation
-		vkCmdSetPrimitiveTopologyEXT(draw_cmd_buffer, VK_PRIMITIVE_TOPOLOGY_PATCH_LIST);
-		vkCmdSetPrimitiveRestartEnableEXT(draw_cmd_buffer, VK_TRUE);
-
 		vkCmdBindDescriptorSets(draw_cmd_buffer,
 		                        VK_PIPELINE_BIND_POINT_GRAPHICS,
 		                        pipeline_layouts.dynamically_tessellation,
@@ -420,18 +373,18 @@ void PatchControlPoints::build_command_buffers()
 		                        nullptr);
 
 		push_const_block.direction = directions[1];
-		vkCmdPushConstants(draw_cmd_buffer, 
-		                   pipeline_layouts.dynamically_tessellation, 
-						   VK_SHADER_STAGE_VERTEX_BIT, 
-						   0, 
-						   sizeof(push_const_block), 
-						   &push_const_block);
+		vkCmdPushConstants(draw_cmd_buffer,
+		                   pipeline_layouts.dynamically_tessellation,
+		                   VK_SHADER_STAGE_VERTEX_BIT,
+		                   0,
+		                   sizeof(push_const_block),
+		                   &push_const_block);
 
 		vkCmdBindPipeline(draw_cmd_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.dynamically_tessellation);
 
-//		vkCmdSetPatchControlPointsEXT(draw_cmd_buffer, patch_control_points_triangle);
+		vkCmdSetPatchControlPointsEXT(draw_cmd_buffer, patch_control_points);
 
-		draw_model(models.terrain_two, draw_cmd_buffer);
+		draw_model(model, draw_cmd_buffer);
 
 		/* UI */
 		draw_ui(draw_cmd_buffer);
@@ -449,20 +402,19 @@ void PatchControlPoints::build_command_buffers()
 void PatchControlPoints::create_descriptor_pool()
 {
 	std::vector<VkDescriptorPoolSize> pool_sizes = {
-	    vkb::initializers::descriptor_pool_size(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 5),
-	    vkb::initializers::descriptor_pool_size(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1),
+	    vkb::initializers::descriptor_pool_size(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 4),
 	};
 
 	VkDescriptorPoolCreateInfo descriptor_pool_create_info =
 	    vkb::initializers::descriptor_pool_create_info(
 	        static_cast<uint32_t>(pool_sizes.size()),
 	        pool_sizes.data(),
-	        3);
+	        2);
 
-	VK_CHECK(vkCreateDescriptorPool(get_device().get_handle(), 
-	                                &descriptor_pool_create_info, 
-									nullptr, 
-									&descriptor_pool));
+	VK_CHECK(vkCreateDescriptorPool(get_device().get_handle(),
+	                                &descriptor_pool_create_info,
+	                                nullptr,
+	                                &descriptor_pool));
 }
 
 /**
@@ -472,7 +424,7 @@ void PatchControlPoints::create_descriptor_pool()
 void PatchControlPoints::setup_descriptor_set_layout()
 {
 	/* First descriptor set */
-	std::vector<VkDescriptorSetLayoutBinding> set_layout_bindings_1 = {
+	std::vector<VkDescriptorSetLayoutBinding> set_layout_bindings = {
 	    vkb::initializers::descriptor_set_layout_binding(
 	        VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
 	        VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT | VK_SHADER_STAGE_VERTEX_BIT,
@@ -483,16 +435,16 @@ void PatchControlPoints::setup_descriptor_set_layout()
 	        1),
 	};
 
-	VkDescriptorSetLayoutCreateInfo descriptor_layout_create_info_1 =
-	    vkb::initializers::descriptor_set_layout_create_info(set_layout_bindings_1.data(),
-	                                                         static_cast<uint32_t>(set_layout_bindings_1.size()));
+	VkDescriptorSetLayoutCreateInfo descriptor_layout_create_info =
+	    vkb::initializers::descriptor_set_layout_create_info(set_layout_bindings.data(),
+	                                                         static_cast<uint32_t>(set_layout_bindings.size()));
 
 	VK_CHECK(vkCreateDescriptorSetLayout(get_device().get_handle(),
-	                                     &descriptor_layout_create_info_1,
+	                                     &descriptor_layout_create_info,
 	                                     nullptr,
 	                                     &descriptor_set_layouts.statically_tessellation));
 
-	VkPipelineLayoutCreateInfo pipeline_layout_create_info_1 =
+	VkPipelineLayoutCreateInfo pipeline_layout_create_info =
 	    vkb::initializers::pipeline_layout_create_info(
 	        &descriptor_set_layouts.statically_tessellation,
 	        1);
@@ -501,16 +453,16 @@ void PatchControlPoints::setup_descriptor_set_layout()
 	VkPushConstantRange push_constant_range            = vkb::initializers::push_constant_range(VK_SHADER_STAGE_VERTEX_BIT,
 	                                                                                            sizeof(push_const_block),
 	                                                                                            0);
-	pipeline_layout_create_info_1.pushConstantRangeCount = 1;
-	pipeline_layout_create_info_1.pPushConstantRanges    = &push_constant_range;
+	pipeline_layout_create_info.pushConstantRangeCount = 1;
+	pipeline_layout_create_info.pPushConstantRanges    = &push_constant_range;
 
 	VK_CHECK(vkCreatePipelineLayout(get_device().get_handle(),
-	                                &pipeline_layout_create_info_1,
+	                                &pipeline_layout_create_info,
 	                                nullptr,
 	                                &pipeline_layouts.statically_tessellation));
 
 	/* Second descriptor set */
-	std::vector<VkDescriptorSetLayoutBinding> set_layout_bindings_2 = {
+	set_layout_bindings = {
 	    vkb::initializers::descriptor_set_layout_binding(
 	        VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
 	        VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT | VK_SHADER_STAGE_VERTEX_BIT,
@@ -521,29 +473,19 @@ void PatchControlPoints::setup_descriptor_set_layout()
 	        1),
 	};
 
-	VkDescriptorSetLayoutCreateInfo descriptor_layout_create_info_2 =
-	    vkb::initializers::descriptor_set_layout_create_info(set_layout_bindings_2.data(),
-	                                                         static_cast<uint32_t>(set_layout_bindings_2.size()));
+	descriptor_layout_create_info.pBindings    = set_layout_bindings.data();
+	descriptor_layout_create_info.bindingCount = static_cast<uint32_t>(set_layout_bindings.size());
 
 	VK_CHECK(vkCreateDescriptorSetLayout(get_device().get_handle(),
-	                                     &descriptor_layout_create_info_2,
+	                                     &descriptor_layout_create_info,
 	                                     nullptr,
 	                                     &descriptor_set_layouts.dynamically_tessellation));
 
-	VkPipelineLayoutCreateInfo pipeline_layout_create_info_2 =
-	    vkb::initializers::pipeline_layout_create_info(
-	        &descriptor_set_layouts.dynamically_tessellation,
-	        1);
-
-	/* Pass scene node information via push constants */
-	VkPushConstantRange push_constant_range_2            = vkb::initializers::push_constant_range(VK_SHADER_STAGE_VERTEX_BIT,
-	                                                                                              sizeof(push_const_block),
-	                                                                                              0);
-	pipeline_layout_create_info_2.pushConstantRangeCount = 1;
-	pipeline_layout_create_info_2.pPushConstantRanges    = &push_constant_range_2;
+	pipeline_layout_create_info.pSetLayouts = &descriptor_set_layouts.dynamically_tessellation;
 
 	VK_CHECK(vkCreatePipelineLayout(get_device().get_handle(),
-	                                &pipeline_layout_create_info_2,
+	                                //&pipeline_layout_create_info_2,
+	                                &pipeline_layout_create_info,
 	                                nullptr,
 	                                &pipeline_layouts.dynamically_tessellation));
 }
@@ -555,63 +497,62 @@ void PatchControlPoints::setup_descriptor_set_layout()
 void PatchControlPoints::create_descriptor_sets()
 {
 	/* First descriptor set */
-	VkDescriptorSetAllocateInfo alloc_info_1 =
+	VkDescriptorSetAllocateInfo alloc_info =
 	    vkb::initializers::descriptor_set_allocate_info(
 	        descriptor_pool,
 	        &descriptor_set_layouts.statically_tessellation,
 	        1);
 
-	VK_CHECK(vkAllocateDescriptorSets(get_device().get_handle(), 
-	                                  &alloc_info_1, 
-									  &descriptor_sets.statically_tessellation));
+	VK_CHECK(vkAllocateDescriptorSets(get_device().get_handle(),
+	                                  &alloc_info,
+	                                  &descriptor_sets.statically_tessellation));
 
-	VkDescriptorBufferInfo matrix_common_buffer_descriptor_1 = create_descriptor(*uniform_buffers.common);
-	VkDescriptorBufferInfo matrix_tess_buffer_descriptor_1   = create_descriptor(*uniform_buffers.statically_tessellation);
+	VkDescriptorBufferInfo matrix_common_buffer_descriptor = create_descriptor(*uniform_buffers.common);
+	VkDescriptorBufferInfo matrix_tess_buffer_descriptor   = create_descriptor(*uniform_buffers.statically_tessellation);
 
 	std::vector<VkWriteDescriptorSet> write_descriptor_sets = {
 	    vkb::initializers::write_descriptor_set(
 	        descriptor_sets.statically_tessellation,
 	        VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
 	        0,
-	        &matrix_common_buffer_descriptor_1),
+	        &matrix_common_buffer_descriptor),
 	    vkb::initializers::write_descriptor_set(
 	        descriptor_sets.statically_tessellation,
 	        VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
 	        1,
-	        &matrix_tess_buffer_descriptor_1)};
+	        &matrix_tess_buffer_descriptor)};
 
 	vkUpdateDescriptorSets(get_device().get_handle(), static_cast<uint32_t>(write_descriptor_sets.size()),
 	                       write_descriptor_sets.data(), 0, VK_NULL_HANDLE);
-	
+
 	/* Second descriptor set */
-	VkDescriptorSetAllocateInfo alloc_info_2 =
+	alloc_info =
 	    vkb::initializers::descriptor_set_allocate_info(
 	        descriptor_pool,
 	        &descriptor_set_layouts.dynamically_tessellation,
 	        1);
 
-	VK_CHECK(vkAllocateDescriptorSets(get_device().get_handle(), &alloc_info_2, &descriptor_sets.dynamically_tessellation));
+	VK_CHECK(vkAllocateDescriptorSets(get_device().get_handle(), &alloc_info, &descriptor_sets.dynamically_tessellation));
 
-	VkDescriptorBufferInfo matrix_common_buffer_descriptor_2 = create_descriptor(*uniform_buffers.common);
-	VkDescriptorBufferInfo matrix_tess_buffer_descriptor_2   = create_descriptor(*uniform_buffers.dynamically_tessellation);
+	matrix_tess_buffer_descriptor = create_descriptor(*uniform_buffers.dynamically_tessellation);
 
-	std::vector<VkWriteDescriptorSet> write_descriptor_sets_2 = {
+	write_descriptor_sets = {
 	    vkb::initializers::write_descriptor_set(
 	        descriptor_sets.dynamically_tessellation,
 	        VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
 	        0,
-	        &matrix_common_buffer_descriptor_2),
+	        &matrix_common_buffer_descriptor),
 	    vkb::initializers::write_descriptor_set(
 	        descriptor_sets.dynamically_tessellation,
 	        VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
 	        1,
-	        &matrix_tess_buffer_descriptor_2)};
+	        &matrix_tess_buffer_descriptor)};
 
-	vkUpdateDescriptorSets(get_device().get_handle(), 
-	                       static_cast<uint32_t>(write_descriptor_sets_2.size()),
-	                       write_descriptor_sets_2.data(), 
-						   0, 
-						   VK_NULL_HANDLE);
+	vkUpdateDescriptorSets(get_device().get_handle(),
+	                       static_cast<uint32_t>(write_descriptor_sets.size()),
+	                       write_descriptor_sets.data(),
+	                       0,
+	                       VK_NULL_HANDLE);
 }
 
 /**
@@ -659,10 +600,8 @@ void PatchControlPoints::request_gpu_features(vkb::PhysicalDevice &gpu)
  */
 void PatchControlPoints::on_update_ui_overlay(vkb::Drawer &drawer)
 {
-
 	if (drawer.header("Settings"))
 	{
-
 		if (drawer.checkbox("Tessellation Enable", &gui_settings.tessellation))
 		{
 			update_uniform_buffers();

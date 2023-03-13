@@ -86,11 +86,7 @@ class PatchControlPoints : public ApiVulkanSample
 		glm::vec3 direction;
 	} push_const_block;
 
-	struct Models
-	{
-		std::unique_ptr<vkb::sg::SubMesh> terrain_one;
-		std::unique_ptr<vkb::sg::SubMesh> terrain_two;
-	} models;
+	std::unique_ptr<vkb::sg::SubMesh> model;
 
 	PatchControlPoints();
 	~PatchControlPoints() override;
