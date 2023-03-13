@@ -110,7 +110,6 @@ class PatchControlPoints : public ApiVulkanSample
 	void create_descriptor_pool();
 	void setup_descriptor_set_layout();
 	void create_descriptor_sets();
-	void draw_created_triangles_model(VkCommandBuffer commandBuffer);
 };
 
 std::unique_ptr<vkb::VulkanSample> create_patch_control_points();
