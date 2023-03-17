@@ -62,7 +62,7 @@ float GetTessLevel(vec4 p0, vec4 p1)
 	}
 	else if (AvgDistance >= shortDistance && AvgDistance < midDistance)
 	{
-		tesselationValue = ubo_tessellation.tessellationFactor * 0.7;
+		tesselationValue = ubo_tessellation.tessellationFactor * 0.4;
 	}
 	else
 	{
