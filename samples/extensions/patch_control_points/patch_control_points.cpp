@@ -66,9 +66,9 @@ bool PatchControlPoints::prepare(vkb::Platform &platform)
 		return false;
 	}
 
-	camera.type = vkb::CameraType::LookAt;
-	camera.set_position({5.0f, 1.0f, -3.0f});
-	camera.set_rotation({-185.0f, 0.0f, 0.2f});
+	camera.type = vkb::CameraType::FirstPerson;
+	camera.set_position({5.0f, -1.0f, -3.0f});
+	camera.set_rotation({-190.0f, -180.0f, 0.2f});
 	camera.set_perspective(60.0f, static_cast<float>(width) / static_cast<float>(height), 256.0f, 0.1f);
 
 	load_assets();
@@ -154,7 +154,6 @@ void PatchControlPoints::update_uniform_buffers()
 	uniform_buffers.common->convert_and_update(ubo_common);
 
 	/* Tessellation uniform buffer */
-	// ubo_tess.viewport_dim = glm::vec2(static_cast<float>(width), static_cast<float>(height)); //currently not used in shader
 	ubo_tess.tessellation_factor = gui_settings.tess_factor;
 	if (!gui_settings.tessellation)
 	{
@@ -427,7 +426,7 @@ void PatchControlPoints::setup_descriptor_set_layout()
 	std::vector<VkDescriptorSetLayoutBinding> set_layout_bindings = {
 	    vkb::initializers::descriptor_set_layout_binding(
 	        VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-	        VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT | VK_SHADER_STAGE_VERTEX_BIT,
+	        VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT | VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT | VK_SHADER_STAGE_VERTEX_BIT,
 	        0),
 	    vkb::initializers::descriptor_set_layout_binding(
 	        VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
@@ -465,7 +464,7 @@ void PatchControlPoints::setup_descriptor_set_layout()
 	set_layout_bindings = {
 	    vkb::initializers::descriptor_set_layout_binding(
 	        VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-	        VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT | VK_SHADER_STAGE_VERTEX_BIT,
+	        VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT | VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT | VK_SHADER_STAGE_VERTEX_BIT,
 	        0),
 	    vkb::initializers::descriptor_set_layout_binding(
 	        VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
@@ -607,8 +606,8 @@ void PatchControlPoints::on_update_ui_overlay(vkb::Drawer &drawer)
 			update_uniform_buffers();
 		}
 
-		/* Maximum tessellation factor is set to 4.0 */
-		if (drawer.slider_float("Tessellation Factor", &gui_settings.tess_factor, 1.0f, 6.0f))
+		/* Maximum tessellation factor is set to 7.0 */
+		if (drawer.slider_float("Tessellation Factor", &gui_settings.tess_factor, 3.0f, 7.0f))
 		{
 			update_uniform_buffers();
 		}

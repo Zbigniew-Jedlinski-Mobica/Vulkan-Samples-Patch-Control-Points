@@ -16,18 +16,16 @@
  */
 #version 450
 
-//layout(binding = 0) uniform UBO // it is not passed to this shader
-//{
-//	mat4  projection;
-//	mat4  view;
-//}
-//ubo;
+layout(binding = 0) uniform UBO
+{
+	mat4  projection;
+	mat4  view;
+}
+ubo;
 
 layout(binding = 1) uniform UBOTessellation
 {
 	float tessellationFactor;
-	vec2 viewportDim;
-	float tessellatedEdgeSize;
 }
 ubo_tessellation;
 
@@ -39,45 +37,58 @@ layout(location = 1) in vec3 inNormal[];
 layout(location = 0) out vec3 outPos[3];
 layout(location = 1) out vec3 outNormal[3];
 
-// Calculate the tessellation factor based on screen space
-// dimensions of the edge
-//float screenSpaceTessFactor(vec4 p0, vec4 p1)
-//{
-//	
-//}
+float GetTessLevel(vec4 p0, vec4 p1)
+{
+	float tesselationValue = 0.0f;
+	float midDistance = 1.6f;
+	float shortDistance = 1.0f;
+
+	// Calculate edge mid point
+	vec4 midPoint = 0.5f * (p0 + p1);
+	
+	// Calculate vector from camera to mid point
+	vec4 vCam = ubo.view * midPoint;
+
+	// Calculate vector for camera projection
+	vec4 vCamView = ubo.projection * vCam;
+
+	// Calculate the vector length
+	float AvgDistance = length(vCamView);
+
+	// Adjusting the size of the tessellation depending on the length of the vector
+	if (AvgDistance >= midDistance)
+	{
+		tesselationValue = 1.0f;
+	}
+	else if (AvgDistance >= shortDistance && AvgDistance < midDistance)
+	{
+		tesselationValue = ubo_tessellation.tessellationFactor * 0.7;
+	}
+	else
+	{
+		tesselationValue = ubo_tessellation.tessellationFactor;
+	}
+
+	return tesselationValue;
+}
 
 void main()
 {
 	if (gl_InvocationID == 0)
 	{
-		//if (ubo_tessellation.tessellationFactor < 0.0) // 
 		if (ubo_tessellation.tessellationFactor > 0.0)
 		{
-//		gl_TessLevelOuter[0] = ubo_tessellation.tessellationFactor;
-//		gl_TessLevelOuter[1] = ubo_tessellation.tessellationFactor;
-//		gl_TessLevelOuter[2] = ubo_tessellation.tessellationFactor;
-//		gl_TessLevelOuter[3] = ubo_tessellation.tessellationFactor;
-//		gl_TessLevelInner[0] = ubo_tessellation.tessellationFactor; //mix(gl_TessLevelOuter[0], gl_TessLevelOuter[3], 0.5);
-//		gl_TessLevelInner[1] = ubo_tessellation.tessellationFactor; //mix(gl_TessLevelOuter[2], gl_TessLevelOuter[1], 0.5);
-
-		gl_TessLevelOuter[0] = ubo_tessellation.tessellationFactor;
-		gl_TessLevelOuter[1] = ubo_tessellation.tessellationFactor;
-		gl_TessLevelOuter[2] = ubo_tessellation.tessellationFactor;
-		gl_TessLevelInner[0] = ubo_tessellation.tessellationFactor;
+			gl_TessLevelOuter[0] = GetTessLevel(gl_in[2].gl_Position, gl_in[0].gl_Position);
+			gl_TessLevelOuter[1] = GetTessLevel(gl_in[0].gl_Position, gl_in[1].gl_Position);
+			gl_TessLevelOuter[2] = GetTessLevel(gl_in[1].gl_Position, gl_in[2].gl_Position);
+			gl_TessLevelInner[0] = mix(gl_TessLevelOuter[0], gl_TessLevelOuter[2], 0.5);
 		}
 		else
 		{
-//		gl_TessLevelOuter[0] = 1;
-//		gl_TessLevelOuter[1] = 1;
-//		gl_TessLevelOuter[2] = 1;
-//		gl_TessLevelOuter[3] = 1;
-//		gl_TessLevelInner[0] = 1;
-//		gl_TessLevelInner[1] = 1;
-
-		gl_TessLevelOuter[0] = 1;
-		gl_TessLevelOuter[1] = 1;
-		gl_TessLevelOuter[2] = 1;
-		gl_TessLevelInner[0] = 1;
+			gl_TessLevelOuter[0] = 1;
+			gl_TessLevelOuter[1] = 1;
+			gl_TessLevelOuter[2] = 1;
+			gl_TessLevelInner[0] = 1;
 		}
 	}
 

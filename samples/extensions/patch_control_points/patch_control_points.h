@@ -30,8 +30,7 @@ class PatchControlPoints : public ApiVulkanSample
 	struct
 	{
 		bool  tessellation = false;
-		float tess_factor  = 1.0f;
-		bool  time_tick    = false;
+		float tess_factor  = 3.0f;
 	} gui_settings;
 
 	/* Buffer used in both pipelines */
@@ -43,9 +42,7 @@ class PatchControlPoints : public ApiVulkanSample
 
 	struct UBOTESS
 	{
-		float     tessellation_factor = 1.0f;        // 0.75f;
-		glm::vec2 viewport_dim;
-		float     tessellated_edge_size = 20.0f;
+		float     tessellation_factor = 3.0f;
 	} ubo_tess;
 
 	VkDescriptorPool descriptor_pool{VK_NULL_HANDLE};
