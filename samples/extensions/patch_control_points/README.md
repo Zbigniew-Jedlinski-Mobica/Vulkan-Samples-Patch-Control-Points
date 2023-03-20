@@ -19,9 +19,6 @@
 
 # Patch control point 
 
-![Sample](./images/patch_control_point_screenshot.png)
-!!TODO: prepare screenshot
-
 ## Overview
 
 This sample demonstrates how to use `VK_EXT_extended_dynamic_state2` extension, which eliminates the need to create multiple pipelines in case of specific different parameters.
