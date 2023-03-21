@@ -74,22 +74,19 @@ float GetTessLevel(vec4 p0, vec4 p1)
 
 void main()
 {
-	if (gl_InvocationID == 0)
+	if (ubo_tessellation.tessellationFactor > 0.0)
 	{
-		if (ubo_tessellation.tessellationFactor > 0.0)
-		{
-			gl_TessLevelOuter[0] = GetTessLevel(gl_in[2].gl_Position, gl_in[0].gl_Position);
-			gl_TessLevelOuter[1] = GetTessLevel(gl_in[0].gl_Position, gl_in[1].gl_Position);
-			gl_TessLevelOuter[2] = GetTessLevel(gl_in[1].gl_Position, gl_in[2].gl_Position);
-			gl_TessLevelInner[0] = mix(gl_TessLevelOuter[0], gl_TessLevelOuter[2], 0.5);
-		}
-		else
-		{
-			gl_TessLevelOuter[0] = 1;
-			gl_TessLevelOuter[1] = 1;
-			gl_TessLevelOuter[2] = 1;
-			gl_TessLevelInner[0] = 1;
-		}
+		gl_TessLevelOuter[0] = GetTessLevel(gl_in[2].gl_Position, gl_in[0].gl_Position);
+		gl_TessLevelOuter[1] = GetTessLevel(gl_in[0].gl_Position, gl_in[1].gl_Position);
+		gl_TessLevelOuter[2] = GetTessLevel(gl_in[1].gl_Position, gl_in[2].gl_Position);
+		gl_TessLevelInner[0] = mix(gl_TessLevelOuter[0], gl_TessLevelOuter[2], 0.5);
+	}
+	else
+	{
+		gl_TessLevelOuter[0] = 1;
+		gl_TessLevelOuter[1] = 1;
+		gl_TessLevelOuter[2] = 1;
+		gl_TessLevelInner[0] = 1;
 	}
 
 	gl_out[gl_InvocationID].gl_Position = gl_in[gl_InvocationID].gl_Position;
