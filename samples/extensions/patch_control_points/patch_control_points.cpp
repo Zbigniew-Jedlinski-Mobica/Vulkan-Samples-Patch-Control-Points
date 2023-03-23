@@ -15,10 +15,6 @@
  * limitations under the License.
  */
 
-#include <memory>
-#include <string>
-#include <vector>
-
 #include "patch_control_points.h"
 
 #include "gltf_loader.h"
@@ -27,7 +23,7 @@
 
 PatchControlPoints::PatchControlPoints()
 {
-	title = "Extended Dynamic State2";
+	title = "Patch Control Points";
 
 	add_instance_extension(VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME);
 	add_device_extension(VK_EXT_EXTENDED_DYNAMIC_STATE_2_EXTENSION_NAME);
@@ -297,7 +293,7 @@ void PatchControlPoints::create_pipelines()
 	dynamic_state.pDynamicStates    = dynamic_state_enables.data();
 	dynamic_state.dynamicStateCount = static_cast<uint32_t>(dynamic_state_enables.size());
 
-	VK_CHECK(vkCreateGraphicsPipelines(get_device().get_handle(), VK_NULL_HANDLE, 1, &graphics_create, VK_NULL_HANDLE, &pipeline.dynamically_tessellation));
+	VK_CHECK(vkCreateGraphicsPipelines(get_device().get_handle(), pipeline_cache, 1, &graphics_create, VK_NULL_HANDLE, &pipeline.dynamically_tessellation));
 }
 
 /**
@@ -361,7 +357,7 @@ void PatchControlPoints::build_command_buffers()
 
 		draw_model(model, draw_cmd_buffer);
 
-		//	dynamiclly tessellation
+		//	dynamically tessellation
 		vkCmdBindDescriptorSets(draw_cmd_buffer,
 		                        VK_PIPELINE_BIND_POINT_GRAPHICS,
 		                        pipeline_layouts.dynamically_tessellation,
@@ -491,7 +487,7 @@ void PatchControlPoints::setup_descriptor_set_layout()
 
 /**
  * 	@fn void PatchControlPoints::create_descriptor_sets()
- * 	@brief Creating descriptor sets for 3 separate pipelines.
+ * 	@brief Creating descriptor sets for 2 separate pipelines.
  */
 void PatchControlPoints::create_descriptor_sets()
 {

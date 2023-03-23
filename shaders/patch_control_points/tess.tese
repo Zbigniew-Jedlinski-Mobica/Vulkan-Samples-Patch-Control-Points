@@ -25,9 +25,6 @@ ubo;
 
 layout(triangles, equal_spacing, cw) in;
 
-layout(location = 0) in vec3 inPos[];
-layout(location = 1) in vec3 inNormal[];
-
 vec4 interpolate3D(vec4 v0, vec4 v1, vec4 v2)
 {
 	return vec4(gl_TessCoord.x) * v0 + vec4(gl_TessCoord.y) * v1 + vec4(gl_TessCoord.z) * v2;
