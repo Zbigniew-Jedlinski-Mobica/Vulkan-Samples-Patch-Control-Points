@@ -17,10 +17,6 @@
 
 #include "patch_control_points.h"
 
-#include "gltf_loader.h"
-#include "scene_graph/components/mesh.h"
-#include "scene_graph/components/sub_mesh.h"
-
 PatchControlPoints::PatchControlPoints()
 {
 	title = "Patch Control Points";
